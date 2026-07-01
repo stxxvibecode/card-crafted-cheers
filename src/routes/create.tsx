@@ -274,7 +274,26 @@ function Create() {
       const hint = plan.codeTemplate;
       const isAi = hint === "ai";
       const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
-      void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
+      const motionHint = plan.codeMotion ?? undefined;
+      const paletteHint = plan.codePalette ?? undefined;
+
+      // If we already have a code spec, iterate on it via edit mode.
+      if (currentDraft.codeSpec) {
+        void regenerateCode({
+          mode: "edit",
+          templateHint,
+          motionHint,
+          paletteHint,
+          instruction: plan.instruction,
+        });
+      } else {
+        void regenerateCode({
+          mode: isAi ? "ai" : "template",
+          templateHint,
+          motionHint,
+          paletteHint,
+        });
+      }
     }
   }, [msgFn, regenerateImage, regenerateCode]);
 
