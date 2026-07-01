@@ -33,7 +33,8 @@ const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that 
 
 The function is invoked with these parameters:
   container: HTMLElement — square element you must fill
-  phrase:    string      — the words the card must display, prominently and legibly
+  phrase:    string      — SHORT headline (2-4 words, e.g. "Happy Birthday"); render LARGE and prominent
+  message:   string      — the sender's personal note (1-4 sentences, may be empty); render SMALLER, wrapped, secondary
   palette:   string[]    — 3-5 hex colors; palette[0] is background, the rest are accents/text
   tempo:     number      — 0.5 (slow, meditative) to 2 (fast, energetic)
   seed:      number      — deterministic randomness input
@@ -42,10 +43,11 @@ STRICT RULES:
 - Output ONLY the function body. No markdown, no code fences, no explanation, no imports, no wrapping function keyword.
 - Use only browser DOM/CSS/SVG/Canvas APIs. No fetch, no XHR, no eval, no import, no require, no window.parent, no cookies/storage.
 - The container fills a square. Design must look intentional at any size (use % / vmin / relative units).
-- Render the phrase prominently. Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
+- ALWAYS render both phrase and message when message is non-empty: phrase is the visual anchor (clamp(2.25rem, 7vw, 4.5rem) serif); message is the personal note beneath it (clamp(0.95rem, 1.6vw, 1.25rem), wrapped, max-width around 36ch, slightly lower opacity). If message is empty, render only phrase.
+- Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
 - Use requestAnimationFrame for motion. Tie easing/frequency to the tempo variable.
 - Keep it under 5500 characters. Prefer elegant simplicity to feature stuffing.
-- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast the phrase.
+- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast text against the background.
 
 Below are two short reference bodies. Do not copy them — use them to calibrate quality and style.
 
