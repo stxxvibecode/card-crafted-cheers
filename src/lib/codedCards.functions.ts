@@ -196,7 +196,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
           "--- CURRENT SOURCE ---",
           prior.source,
         ].filter(Boolean).join("\n");
-        const raw = await callChat(key, CODE_MODEL, EDIT_SYSTEM, user);
+        const raw = await callChat(model, EDIT_SYSTEM, user);
         const source = stripFences(raw);
         const palette = cleanPalette(data.paletteHint, prior.palette && prior.palette.length >= 3 ? prior.palette : TEMPLATES[0].palette);
         return {
