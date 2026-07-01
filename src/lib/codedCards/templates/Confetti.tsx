@@ -39,7 +39,7 @@ export function Confetti({ phrase, palette, tempo, seed }: { phrase: string; pal
         />
       ))}
       <div className="absolute inset-0 grid place-items-center px-6 text-center">
-        <h1 className="pgn-phrase" style={{ color: palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.5rem, 8vw, 5rem)', lineHeight: 1.05, letterSpacing: "-0.02em", textShadow: `0 2px 30px ${bg}` }}>
+        <h1 className="pgn-phrase" style={{ color: palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.5rem, 8vw, 5rem)", lineHeight: 1.05, letterSpacing: "-0.02em", textShadow: `0 2px 30px ${bg}` }}>
           {phrase}
         </h1>
       </div>
