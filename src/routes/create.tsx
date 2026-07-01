@@ -137,8 +137,11 @@ function Create() {
   }, []);
 
   const regenerateCode = useCallback(async (opts: {
-    mode: "template" | "ai";
+    mode: "template" | "ai" | "edit";
     templateHint?: Exclude<TemplateId, "ai">;
+    motionHint?: string;
+    paletteHint?: string[];
+    instruction?: string;
     phrase?: string;
   }) => {
     const d = draftRef.current;
@@ -151,6 +154,15 @@ function Create() {
           phrase: opts.phrase ?? d.codeSpec?.phrase ?? phraseFor(d.occasion),
           mode: opts.mode,
           templateHint: opts.templateHint,
+          motionHint: opts.motionHint,
+          paletteHint: opts.paletteHint,
+          instruction: opts.instruction,
+          prior: opts.mode === "edit" && d.codeSpec ? {
+            template: d.codeSpec.template,
+            palette: d.codeSpec.palette,
+            tempo: d.codeSpec.tempo,
+            source: d.codeSpec.source,
+          } : undefined,
         },
       });
       setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
