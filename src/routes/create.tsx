@@ -392,12 +392,12 @@ function ChatPanel({
           }}
         >
           <PromptInputTextarea
-            ref={textareaRef}
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="Tell Pigeon what to change…"
             disabled={busy}
           />
+
           <PromptInputFooter className="justify-end">
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}
