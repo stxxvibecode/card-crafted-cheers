@@ -60,13 +60,13 @@ function Index() {
                 className="w-full resize-none bg-transparent px-4 py-3 text-base outline-none placeholder:text-muted-foreground/70"
               />
               <div className="flex items-center justify-between gap-2 px-2 pb-1">
-                <span className="text-xs text-muted-foreground">{prompt.length}/500</span>
+                <span className="text-xs text-muted-foreground">Pick Art or Code on the next step</span>
                 <button
                   type="submit"
                   disabled={!prompt.trim()}
                   className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
                 >
-                  Send with Pigeon <ArrowRight className="h-4 w-4" />
+                  Continue <ArrowRight className="h-4 w-4" />
                 </button>
               </div>
             </div>
