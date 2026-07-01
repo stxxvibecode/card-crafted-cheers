@@ -265,7 +265,13 @@ function Create() {
           senderName: currentDraft.senderName || undefined,
         },
       })
-        .then((r) => setDraft((d) => ({ ...d, message: r.message })))
+        .then((r) => {
+          setDraft((d) => ({ ...d, message: r.message }));
+          // Re-render the coded card with the fresh message baked in.
+          if (targetMedium === "code") {
+            void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
+          }
+        })
         .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
         .finally(() => setMsgLoading(false));
     }
