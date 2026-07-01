@@ -168,10 +168,10 @@ function cleanPalette(input: string[] | undefined, fallback: string[]): string[]
 export const generateCodedCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => Input.parse(raw))
   .handler(async ({ data }): Promise<CodeSpec> => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const model = data.model;
 
     const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
+
     const finalMessage = data.message?.trim() ?? "";
     const seed = Math.floor(Math.random() * 1_000_000);
 
