@@ -98,12 +98,13 @@ function Create() {
   const [sending, setSending] = useState(false);
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
+  const [actionMode, setActionMode] = useState<"plan" | "build">("plan");
   const [messages, setMessages] = useState<ChatMsg[]>(() => [
     {
       id: "seed",
       role: "assistant",
       content:
-        "Hi, I'm Pigeon. First, tap Art or Code on the right to pick a medium — then tell me who this card is for and how you'd like it to feel. I'll draft a plan; you hit Build when it's right.",
+        "Hi, I'm Pigeon. Pick your medium and Plan or Build below, then tell me who this card is for and how you'd like it to feel.",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
@@ -187,12 +188,17 @@ function Create() {
         !!u.codeTemplate || u.regenerateImage;
 
       const planId = crypto.randomUUID();
+      const planForBuild: PlanUpdates = { ...u, id: planId, built: false };
       setMessages((prev) => [
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
       ]);
       if (hasProposals) {
-        setPendingPlan({ ...u, id: planId, built: false });
+        setPendingPlan(planForBuild);
+        if (actionMode === "build" && (planForBuild.medium ?? draftRef.current.medium)) {
+          // Auto-execute build right away.
+          setTimeout(() => commitPlanRef.current?.(planForBuild), 0);
+        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Chat failed");
@@ -200,6 +206,8 @@ function Create() {
       setChatBusy(false);
     }
   }
+
+  const commitPlanRef = useRef<((p: PlanUpdates) => void) | null>(null);
 
   const commitPlan = useCallback(async (plan: PlanUpdates) => {
     const currentDraft = draftRef.current;
@@ -253,6 +261,8 @@ function Create() {
       void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
     }
   }, [msgFn, regenerateImage, regenerateCode]);
+
+  useEffect(() => { commitPlanRef.current = commitPlan; }, [commitPlan]);
 
   async function editorBuild() {
     if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
@@ -383,6 +393,9 @@ function Create() {
                 onSend={(t) => handleSend(t)}
                 pendingPlan={pendingPlan}
                 medium={draft.medium}
+                setMedium={setMedium}
+                actionMode={actionMode}
+                setActionMode={setActionMode}
                 onBuild={commitPlan}
                 building={imgLoading || codeLoading || msgLoading}
                 initialText={initialPrompt ?? ""}
@@ -391,6 +404,7 @@ function Create() {
               <EditorPanel
                 draft={draft}
                 setDraft={setDraft}
+                setMedium={setMedium}
                 onBuild={editorBuild}
                 onRewriteMessage={rewriteMessage}
                 onRegenerateCode={regenerateCode}
@@ -403,39 +417,23 @@ function Create() {
 
           {/* Right: Preview + Send */}
           <div className="flex min-h-[600px] flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
+            {draft.medium === "code" && draft.codeSpec && (
+              <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => setMedium("art")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={shufflePalette}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <Palette className="h-3 w-3" /> Art
+                  <Shuffle className="h-3 w-3" /> Shuffle
                 </button>
                 <button
-                  onClick={() => setMedium("code")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => regenerateCode({ mode: "ai" })}
+                  disabled={codeLoading}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  <Code2 className="h-3 w-3" /> Code
+                  <Sparkles className="h-3 w-3" /> Surprise me
                 </button>
               </div>
-              {draft.medium === "code" && draft.codeSpec && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={shufflePalette}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Shuffle className="h-3 w-3" /> Shuffle
-                  </button>
-                  <button
-                    onClick={() => regenerateCode({ mode: "ai" })}
-                    disabled={codeLoading}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  >
-                    <Sparkles className="h-3 w-3" /> Surprise me
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
@@ -446,7 +444,7 @@ function Create() {
                         <Palette className="h-5 w-5" />
                         <Code2 className="h-5 w-5" />
                       </div>
-                      <p>Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> above to begin.</p>
+                      <p>Pick a medium in the composer to begin.</p>
                     </div>
                   </div>
                 ) : draft.medium === "art" ? (
@@ -554,7 +552,7 @@ function PlanCard({
   if (plan.senderName) rows.push(["From", plan.senderName]);
   if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
 
-  const disabled = plan.built || building || !proposedMedium;
+  const disabled = plan.built || building;
 
   return (
     <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
@@ -579,7 +577,7 @@ function PlanCard({
         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-40"
       >
         {building ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hammer className="h-3 w-3" />}
-        {plan.built ? "Built" : !proposedMedium ? "Pick Art or Code above" : "Build card"}
+        {plan.built ? "Built" : "Build card"}
       </button>
     </div>
   );
@@ -591,6 +589,9 @@ function ChatPanel({
   onSend,
   pendingPlan,
   medium,
+  setMedium,
+  actionMode,
+  setActionMode,
   onBuild,
   building,
   initialText,
@@ -600,6 +601,9 @@ function ChatPanel({
   onSend: (text: string) => void;
   pendingPlan: PlanUpdates | null;
   medium?: Medium;
+  setMedium: (m: Medium) => void;
+  actionMode: "plan" | "build";
+  setActionMode: (m: "plan" | "build") => void;
   onBuild: (p: PlanUpdates) => void;
   building: boolean;
   initialText: string;
@@ -615,6 +619,8 @@ function ChatPanel({
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
+
+  const canSubmit = !!medium && !!text.trim() && !busy;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -652,6 +658,7 @@ function ChatPanel({
           onSubmit={(msg) => {
             const t = msg.text.trim();
             if (!t) return;
+            if (!medium) { toast.error("Pick Art or Code below first."); return; }
             setText("");
             onSend(t);
           }}
@@ -659,14 +666,41 @@ function ChatPanel({
           <PromptInputTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={medium ? "Tell Pigeon what to change…" : "Pick Art or Code, then describe your card…"}
+            placeholder={medium ? "Describe your card, or ask for changes…" : "Pick a medium below, then describe your card…"}
             disabled={busy}
           />
 
-          <PromptInputFooter className="justify-end">
+          <PromptInputFooter className="justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMedium("art")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Palette className="h-3 w-3" /> Art
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMedium("code")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Code2 className="h-3 w-3" /> Code
+                </button>
+              </div>
+              <select
+                value={actionMode}
+                onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none hover:border-foreground/40"
+                aria-label="Action mode"
+              >
+                <option value="plan">Plan</option>
+                <option value="build">Build</option>
+              </select>
+            </div>
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}
-              disabled={busy || !text.trim()}
+              disabled={!canSubmit}
             >
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
@@ -680,6 +714,7 @@ function ChatPanel({
 function EditorPanel({
   draft,
   setDraft,
+  setMedium,
   onBuild,
   onRewriteMessage,
   onRegenerateCode,
@@ -689,6 +724,7 @@ function EditorPanel({
 }: {
   draft: Draft;
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
+  setMedium: (m: Medium) => void;
   onBuild: () => void;
   onRewriteMessage: () => void;
   onRegenerateCode: (opts: { mode: "template" | "ai"; templateHint?: Exclude<TemplateId, "ai"> }) => void;
@@ -700,11 +736,25 @@ function EditorPanel({
   const canBuild = !!draft.medium && !!draft.prompt.trim();
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      {!draft.medium && (
-        <div className="rounded-lg border border-dashed border-border bg-background/60 p-3 text-xs text-muted-foreground">
-          Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> on the preview to unlock Build.
+      <div>
+        <label className="text-xs uppercase tracking-wide text-muted-foreground">Medium</label>
+        <div className="mt-2 inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMedium("art")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Palette className="h-3 w-3" /> Art
+          </button>
+          <button
+            type="button"
+            onClick={() => setMedium("code")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Code2 className="h-3 w-3" /> Code
+          </button>
         </div>
-      )}
+      </div>
       <div>
         <label className="text-xs uppercase tracking-wide text-muted-foreground">Prompt</label>
         <textarea
