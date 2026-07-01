@@ -77,13 +77,23 @@ function frame(){
   requestAnimationFrame(frame);
 }
 frame();
+const wrap = document.createElement('div');
+Object.assign(wrap.style, { position:'absolute', inset:0, display:'flex', flexDirection:'column', gap:'1rem',
+  alignItems:'center', justifyContent:'center', textAlign:'center', padding:'0 6%', color: cs[0]||'#fff',
+  fontFamily:'"Instrument Serif", Georgia, serif' });
 const h = document.createElement('div');
 h.textContent = phrase;
-Object.assign(h.style, { position:'absolute', inset:0, display:'grid', placeItems:'center',
-  color: cs[0]||'#fff', fontFamily:'"Instrument Serif", Georgia, serif',
-  fontSize:'clamp(2.5rem, 8vw, 5rem)', lineHeight:'1.05', textAlign:'center', padding:'0 6%',
+Object.assign(h.style, { fontSize:'clamp(2.25rem, 7vw, 4.5rem)', lineHeight:'1.05',
   letterSpacing:'-0.02em', textShadow:'0 2px 30px '+bg });
-container.appendChild(h);
+wrap.appendChild(h);
+if (message) {
+  const m = document.createElement('div');
+  m.textContent = message;
+  Object.assign(m.style, { fontSize:'clamp(0.95rem, 1.6vw, 1.25rem)', lineHeight:'1.4',
+    maxWidth:'36ch', opacity:'0.85', fontStyle:'italic' });
+  wrap.appendChild(m);
+}
+container.appendChild(wrap);
 
 --- REFERENCE 2: kinetic svg words ---
 const [bg, fg, accent] = palette;
