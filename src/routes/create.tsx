@@ -8,6 +8,7 @@ import { generateMessage, saveCard, sendCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
+import { CodeViewer } from "@/lib/codedCards/CodeViewer";
 import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
 import {
@@ -23,6 +24,8 @@ import {
   Sparkles,
   Shuffle,
   Hammer,
+  Eye,
+  FileCode2,
 } from "lucide-react";
 import { z } from "zod";
 import {
@@ -72,7 +75,10 @@ type PlanUpdates = {
   senderName: string | null;
   medium: Medium | null;
   codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+  codeMotion: string | null;
+  codePalette: string[] | null;
   regenerateImage: boolean;
+  instruction?: string; // last user message that produced the plan (used for edit mode)
   built?: boolean;
 };
 
@@ -99,6 +105,7 @@ function Create() {
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
   const [actionMode, setActionMode] = useState<"plan" | "build">("plan");
+  const [previewTab, setPreviewTab] = useState<"preview" | "code">("preview");
   const [messages, setMessages] = useState<ChatMsg[]>(() => [
     {
       id: "seed",
@@ -134,8 +141,11 @@ function Create() {
   }, []);
 
   const regenerateCode = useCallback(async (opts: {
-    mode: "template" | "ai";
+    mode: "template" | "ai" | "edit";
     templateHint?: Exclude<TemplateId, "ai">;
+    motionHint?: string;
+    paletteHint?: string[];
+    instruction?: string;
     phrase?: string;
   }) => {
     const d = draftRef.current;
@@ -148,6 +158,15 @@ function Create() {
           phrase: opts.phrase ?? d.codeSpec?.phrase ?? phraseFor(d.occasion),
           mode: opts.mode,
           templateHint: opts.templateHint,
+          motionHint: opts.motionHint,
+          paletteHint: opts.paletteHint,
+          instruction: opts.instruction,
+          prior: opts.mode === "edit" && d.codeSpec ? {
+            template: d.codeSpec.template,
+            palette: d.codeSpec.palette,
+            tempo: d.codeSpec.tempo,
+            source: d.codeSpec.source,
+          } : undefined,
         },
       });
       setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
@@ -185,10 +204,11 @@ function Create() {
       const hasProposals =
         !!u.prompt || !!u.occasion || !!u.message ||
         !!u.recipientName || !!u.senderName || !!u.medium ||
-        !!u.codeTemplate || u.regenerateImage;
+        !!u.codeTemplate || !!u.codeMotion || (u.codePalette && u.codePalette.length > 0) ||
+        u.regenerateImage;
 
       const planId = crypto.randomUUID();
-      const planForBuild: PlanUpdates = { ...u, id: planId, built: false };
+      const planForBuild: PlanUpdates = { ...u, id: planId, built: false, instruction: t };
       setMessages((prev) => [
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
@@ -258,7 +278,26 @@ function Create() {
       const hint = plan.codeTemplate;
       const isAi = hint === "ai";
       const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
-      void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
+      const motionHint = plan.codeMotion ?? undefined;
+      const paletteHint = plan.codePalette ?? undefined;
+
+      // If we already have a code spec, iterate on it via edit mode.
+      if (currentDraft.codeSpec) {
+        void regenerateCode({
+          mode: "edit",
+          templateHint,
+          motionHint,
+          paletteHint,
+          instruction: plan.instruction,
+        });
+      } else {
+        void regenerateCode({
+          mode: isAi ? "ai" : "template",
+          templateHint,
+          motionHint,
+          paletteHint,
+        });
+      }
     }
   }, [msgFn, regenerateImage, regenerateCode]);
 
@@ -310,7 +349,18 @@ function Create() {
     setIsFinalImage(false);
     setImgLoading(false);
     setCodeLoading(false);
+    setPreviewTab("preview");
     setDraft((d) => ({ ...d, medium: m, codeSpec: undefined }));
+  }
+
+  function applyHandEditedSource(source: string) {
+    const spec = draft.codeSpec;
+    if (!spec) return;
+    setDraft((d) => ({
+      ...d,
+      codeSpec: { ...spec, template: "ai", source, seed: Math.floor(Math.random() * 1e6) },
+    }));
+    toast.success("Running your edited code");
   }
 
   function shufflePalette() {
@@ -418,24 +468,45 @@ function Create() {
           {/* Right: Preview + Send */}
           <div className="flex min-h-[600px] flex-col gap-4">
             {draft.medium === "code" && draft.codeSpec && (
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={shufflePalette}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Shuffle className="h-3 w-3" /> Shuffle
-                </button>
-                <button
-                  onClick={() => regenerateCode({ mode: "ai" })}
-                  disabled={codeLoading}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  <Sparkles className="h-3 w-3" /> Surprise me
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
+                  <button
+                    onClick={() => setPreviewTab("preview")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${previewTab === "preview" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Eye className="h-3 w-3" /> Preview
+                  </button>
+                  <button
+                    onClick={() => setPreviewTab("code")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${previewTab === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <FileCode2 className="h-3 w-3" /> Code
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={shufflePalette}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Shuffle className="h-3 w-3" /> Shuffle
+                  </button>
+                  <button
+                    onClick={() => regenerateCode({ mode: "ai" })}
+                    disabled={codeLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    <Sparkles className="h-3 w-3" /> Surprise me
+                  </button>
+                </div>
               </div>
             )}
 
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
+              {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
+                <div className="aspect-square w-full">
+                  <CodeViewer spec={draft.codeSpec} onEdit={applyHandEditedSource} />
+                </div>
+              ) : (
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
                 {!draft.medium ? (
                   <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground">
@@ -476,6 +547,7 @@ function Create() {
                   </div>
                 )}
               </div>
+              )}
               <div className="border-t border-border p-6">
                 {draft.message ? (
                   <div className="space-y-2">
@@ -547,12 +619,14 @@ function PlanCard({
   if (plan.occasion) rows.push(["Occasion", plan.occasion]);
   if (proposedMedium) rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
   if (proposedMedium === "code" && plan.codeTemplate) rows.push(["Template", plan.codeTemplate]);
+  if (proposedMedium === "code" && plan.codeMotion) rows.push(["Motion", plan.codeMotion]);
   if (plan.prompt) rows.push(["Vibe", plan.prompt.length > 90 ? plan.prompt.slice(0, 87) + "…" : plan.prompt]);
   if (plan.recipientName) rows.push(["For", plan.recipientName]);
   if (plan.senderName) rows.push(["From", plan.senderName]);
   if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
 
   const disabled = plan.built || building;
+  const paletteSwatches = proposedMedium === "code" && plan.codePalette && plan.codePalette.length > 0 ? plan.codePalette : null;
 
   return (
     <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
@@ -570,6 +644,21 @@ function PlanCard({
         </dl>
       ) : (
         <p className="text-muted-foreground">Ready when you are.</p>
+      )}
+      {paletteSwatches && (
+        <div className="mt-2 grid grid-cols-[70px_1fr] gap-2">
+          <span className="text-muted-foreground">Palette</span>
+          <div className="flex flex-wrap gap-1.5">
+            {paletteSwatches.map((c, i) => (
+              <span
+                key={i}
+                title={c}
+                className="h-4 w-4 rounded-full border border-border shadow-sm"
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
       )}
       <button
         onClick={() => onBuild(plan)}

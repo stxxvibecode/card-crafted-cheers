@@ -36,3 +36,26 @@ export function suggestTemplate(occasion?: string): Exclude<TemplateId, "ai"> {
   const hit = TEMPLATES.find((t) => t.bestFor.includes(o));
   return hit?.id ?? "kinetic";
 }
+
+// Raw source of each template component for the "View code" panel.
+// Vite's ?raw suffix inlines the file as a string at build time.
+import confettiSrc from "./templates/Confetti.tsx?raw";
+import fireworksSrc from "./templates/Fireworks.tsx?raw";
+import kineticSrc from "./templates/KineticSerif.tsx?raw";
+import heartsSrc from "./templates/Hearts.tsx?raw";
+import starfieldSrc from "./templates/Starfield.tsx?raw";
+import ribbonsSrc from "./templates/Ribbons.tsx?raw";
+
+const TEMPLATE_SOURCES: Record<Exclude<TemplateId, "ai">, string> = {
+  confetti: confettiSrc,
+  fireworks: fireworksSrc,
+  kinetic: kineticSrc,
+  hearts: heartsSrc,
+  starfield: starfieldSrc,
+  ribbons: ribbonsSrc,
+};
+
+export function getTemplateSource(id: TemplateId): string | null {
+  if (id === "ai") return null;
+  return TEMPLATE_SOURCES[id] ?? null;
+}

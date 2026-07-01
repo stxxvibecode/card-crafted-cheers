@@ -62,6 +62,17 @@ const OUT_SCHEMA = {
           description:
             "Only when medium is 'code'. Suggest a template that fits: confetti/fireworks (celebration), kinetic (quiet elegance), hearts (love), starfield (contemplative), ribbons (whimsical), or 'ai' when the user asks to surprise them.",
         },
+        codeMotion: {
+          type: ["string", "null"],
+          description:
+            "Only for code medium. 2-6 word phrase describing motion feel, e.g. 'slow drifting particles', 'rising confetti', 'kinetic serif fade-in'. null when unchanged.",
+        },
+        codePalette: {
+          type: ["array", "null"],
+          items: { type: "string" },
+          description:
+            "Only for code medium. 3-5 hex color strings (background first). null when unchanged.",
+        },
         regenerateImage: {
           type: "boolean",
           description:
@@ -76,6 +87,8 @@ const OUT_SCHEMA = {
         "senderName",
         "medium",
         "codeTemplate",
+        "codeMotion",
+        "codePalette",
         "regenerateImage",
       ],
     },
@@ -102,7 +115,8 @@ On each turn respond with JSON matching the schema:
 - "regenerateImage": true whenever the ART visual should be repainted from the (new or existing) prompt. False for text-only edits or when medium is code.
 - Whenever occasion changes AND medium is "art", set regenerateImage: true — the artwork hand-letters the occasion phrase into the illustration.
 - MEDIUM: leave medium null unless the user explicitly asks to switch. The composer selection is the source of truth.
-- When medium is "code", propose codeTemplate (confetti/fireworks = celebration, kinetic = elegance, hearts = love, starfield = contemplative, ribbons = whimsical, "ai" = surprise generative). Do not set regenerateImage for code cards.
+- When medium is "code", propose codeTemplate (confetti/fireworks = celebration, kinetic = elegance, hearts = love, starfield = contemplative, ribbons = whimsical, "ai" = surprise generative). Also propose codeMotion (2-6 words describing motion feel) and codePalette (3-5 hex, background first) whenever you have a specific vision. Do not set regenerateImage for code cards.
+- For follow-up edits on a code card, ONLY set the fields that should change (codeMotion, codePalette, codeTemplate). Keep prompt/message null unless the sender asked to change them too.
 
 If the sender hasn't described the card yet, ask a single warm question and leave all updates null.
 The card message never starts with "Dear ___" and never signs a name. 2-4 sincere, specific sentences.
@@ -151,6 +165,8 @@ ${JSON.stringify(data.draft, null, 2)}`;
         senderName: string | null;
         medium: "art" | "code" | null;
         codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+        codeMotion: string | null;
+        codePalette: string[] | null;
         regenerateImage: boolean;
       };
     };

@@ -3,15 +3,154 @@ import { z } from "zod";
 import { TEMPLATES, suggestTemplate, type CodeSpec, type TemplateId } from "./codedCards/registry";
 import { phraseFor } from "./occasion";
 
+const PriorSchema = z.object({
+  template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]).optional(),
+  palette: z.array(z.string()).max(5).optional(),
+  tempo: z.number().optional(),
+  source: z.string().max(20_000).optional(),
+});
+
 const Input = z.object({
   prompt: z.string().max(500).optional(),
   occasion: z.string().max(64).optional(),
   phrase: z.string().max(80).optional(),
-  mode: z.enum(["template", "ai"]),
+  mode: z.enum(["template", "ai", "edit"]),
   templateHint: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons"]).optional(),
+  motionHint: z.string().max(120).optional(),
+  paletteHint: z.array(z.string()).max(5).optional(),
+  instruction: z.string().max(500).optional(),
+  prior: PriorSchema.optional(),
 });
 
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
+
+const CODE_MODEL = "google/gemini-3.5-flash";
+const PICKER_MODEL = "google/gemini-3-flash-preview";
+const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
+
+const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that renders a beautiful animated greeting-card visual into a provided container element.
+
+The function is invoked with these parameters:
+  container: HTMLElement — square element you must fill
+  phrase:    string      — the words the card must display, prominently and legibly
+  palette:   string[]    — 3-5 hex colors; palette[0] is background, the rest are accents/text
+  tempo:     number      — 0.5 (slow, meditative) to 2 (fast, energetic)
+  seed:      number      — deterministic randomness input
+
+STRICT RULES:
+- Output ONLY the function body. No markdown, no code fences, no explanation, no imports, no wrapping function keyword.
+- Use only browser DOM/CSS/SVG/Canvas APIs. No fetch, no XHR, no eval, no import, no require, no window.parent, no cookies/storage.
+- The container fills a square. Design must look intentional at any size (use % / vmin / relative units).
+- Render the phrase prominently. Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
+- Use requestAnimationFrame for motion. Tie easing/frequency to the tempo variable.
+- Keep it under 5500 characters. Prefer elegant simplicity to feature stuffing.
+- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast the phrase.
+
+Below are two short reference bodies. Do not copy them — use them to calibrate quality and style.
+
+--- REFERENCE 1: canvas particle drift ---
+const c = document.createElement('canvas');
+container.appendChild(c);
+Object.assign(c.style, { position:'absolute', inset:0, width:'100%', height:'100%' });
+const ctx = c.getContext('2d');
+function size(){ const r = container.getBoundingClientRect(); c.width = r.width; c.height = r.height; }
+size(); new ResizeObserver(size).observe(container);
+const [bg, ...cs] = palette;
+let rs = seed;
+const rand = () => (rs = (rs * 1664525 + 1013904223) >>> 0, rs / 4294967296);
+const pts = Array.from({length: 90}, () => ({
+  x: rand()*c.width, y: rand()*c.height, r: 1+rand()*3,
+  vx: (rand()-.5)*.2*tempo, vy: (rand()-.5)*.2*tempo,
+  color: cs[Math.floor(rand()*cs.length)] || '#fff', a: .3+rand()*.5
+}));
+function frame(){
+  ctx.fillStyle = bg; ctx.fillRect(0,0,c.width,c.height);
+  for(const p of pts){ p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0||p.x>c.width) p.vx*=-1; if(p.y<0||p.y>c.height) p.vy*=-1;
+    ctx.globalAlpha = p.a; ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(frame);
+}
+frame();
+const h = document.createElement('div');
+h.textContent = phrase;
+Object.assign(h.style, { position:'absolute', inset:0, display:'grid', placeItems:'center',
+  color: cs[0]||'#fff', fontFamily:'"Instrument Serif", Georgia, serif',
+  fontSize:'clamp(2.5rem, 8vw, 5rem)', lineHeight:'1.05', textAlign:'center', padding:'0 6%',
+  letterSpacing:'-0.02em', textShadow:'0 2px 30px '+bg });
+container.appendChild(h);
+
+--- REFERENCE 2: kinetic svg words ---
+const [bg, fg, accent] = palette;
+container.style.background = bg;
+const words = phrase.split(/\\s+/);
+const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+svg.setAttribute('viewBox','0 0 400 400');
+svg.setAttribute('preserveAspectRatio','xMidYMid meet');
+Object.assign(svg.style,{position:'absolute',inset:0,width:'100%',height:'100%'});
+container.appendChild(svg);
+words.forEach((w,i)=>{
+  const t = document.createElementNS(svg.namespaceURI,'text');
+  t.textContent = w;
+  t.setAttribute('x','200'); t.setAttribute('y', 130 + i*70);
+  t.setAttribute('text-anchor','middle');
+  t.setAttribute('fill', i%2 ? accent||fg : fg);
+  t.setAttribute('font-family','Instrument Serif, Georgia, serif');
+  t.setAttribute('font-size','64');
+  t.setAttribute('font-style', i%2 ? 'italic':'normal');
+  t.setAttribute('opacity','0');
+  svg.appendChild(t);
+  const delay = i * 400 / tempo;
+  setTimeout(() => t.animate(
+    [{opacity:0, transform:'translateY(12px)'},{opacity:1, transform:'translateY(0)'}],
+    { duration: 600/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)' }
+  ), delay);
+});`;
+
+const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender wants a specific change.
+
+Rules:
+- Return the FULL rewritten function body only. No markdown, no explanations.
+- Preserve the same invocation contract: (container, phrase, palette, tempo, seed).
+- Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
+- Apply the sender's requested change; keep the rest of the visual coherent.`;
+
+async function callChat(key: string, model: string, system: string, user: string, opts?: { schema?: unknown; schemaName?: string }): Promise<string> {
+  const body: Record<string, unknown> = {
+    model,
+    messages: [{ role: "system", content: system }, { role: "user", content: user }],
+  };
+  if (opts?.schema) {
+    body.response_format = {
+      type: "json_schema",
+      json_schema: { name: opts.schemaName ?? "out", strict: true, schema: opts.schema },
+    };
+  }
+  const res = await fetch(GATEWAY, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    if (res.status === 429) throw new Error("Rate limit — try again in a moment.");
+    if (res.status === 402) throw new Error("AI credits exhausted.");
+    const t = await res.text().catch(() => "");
+    throw new Error(`AI error: ${res.status} ${t}`);
+  }
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  return json.choices?.[0]?.message?.content?.trim() ?? "";
+}
+
+function stripFences(s: string): string {
+  return s.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
+}
+
+function cleanPalette(input: string[] | undefined, fallback: string[]): string[] {
+  const cleaned = (input ?? []).filter((c) => /^#[0-9a-fA-F]{3,8}$/.test(c));
+  return cleaned.length >= 3 ? cleaned.slice(0, 5) : fallback;
+}
 
 export const generateCodedCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => Input.parse(raw))
@@ -19,14 +158,110 @@ export const generateCodedCard = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const phrase =
-      data.phrase?.trim() ||
-      phraseFor(data.occasion) ||
-      "With Love";
+    const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
     const seed = Math.floor(Math.random() * 1_000_000);
 
+    // ------------------------------------------------------------------
+    // EDIT MODE — iterate on an existing card spec
+    // ------------------------------------------------------------------
+    if (data.mode === "edit") {
+      const prior = data.prior;
+      const instruction = data.instruction?.trim() || "Refine and polish.";
+
+      // If we have prior source, ask the model to rewrite it end-to-end.
+      if (prior?.source) {
+        const user = [
+          `Current card phrase: "${finalPhrase}"`,
+          `Current palette: ${JSON.stringify(prior.palette ?? [])}`,
+          `Current tempo: ${prior.tempo ?? 1}`,
+          data.paletteHint?.length ? `Sender's palette suggestion: ${JSON.stringify(data.paletteHint)}` : null,
+          data.motionHint ? `Motion feel: ${data.motionHint}` : null,
+          `Sender's edit request: ${instruction}`,
+          "",
+          "--- CURRENT SOURCE ---",
+          prior.source,
+        ].filter(Boolean).join("\n");
+        const raw = await callChat(key, CODE_MODEL, EDIT_SYSTEM, user);
+        const source = stripFences(raw);
+        const palette = cleanPalette(data.paletteHint, prior.palette && prior.palette.length >= 3 ? prior.palette : TEMPLATES[0].palette);
+        return {
+          template: "ai",
+          palette,
+          phrase: finalPhrase,
+          tempo: Math.max(0.4, Math.min(2, prior.tempo ?? 1)),
+          seed,
+          source,
+        };
+      }
+
+      // Prior is a named template. Decide: palette/tempo tweak vs upgrade to AI source.
+      const currentTemplate = (prior?.template && prior.template !== "ai" ? prior.template : suggestTemplate(data.occasion)) as Exclude<TemplateId, "ai">;
+      const templateBase = TEMPLATES.find((t) => t.id === currentTemplate)!;
+
+      const DECISION_SCHEMA = {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          action: { type: "string", enum: ["tweak", "rewrite"] },
+          template: { type: ["string", "null"], enum: [...TEMPLATE_IDS, null] },
+          palette: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 5 },
+          tempo: { type: "number" },
+        },
+        required: ["action", "template", "palette", "tempo"],
+      };
+      const decisionUser = [
+        `Current template: ${currentTemplate}`,
+        `Current palette: ${JSON.stringify(prior?.palette ?? templateBase.palette)}`,
+        `Current tempo: ${prior?.tempo ?? 1}`,
+        data.motionHint ? `Motion feel hint: ${data.motionHint}` : null,
+        data.paletteHint?.length ? `Palette hint: ${JSON.stringify(data.paletteHint)}` : null,
+        `Sender's request: ${instruction}`,
+        "",
+        "If the request is a palette/tempo/template swap, action='tweak'. If it needs custom animation the templates can't do, action='rewrite'.",
+      ].filter(Boolean).join("\n");
+      const decisionSys = `You decide how to apply an edit to a coded greeting card.
+Return JSON.
+- action='tweak': keep the template family, adjust palette (3-5 hex), tempo (0.5-2), and optionally swap template to one of: ${TEMPLATE_IDS.join(", ")}.
+- action='rewrite': the edit needs custom animation. Still return a fallback palette and tempo.
+palette[0] is background; ensure the phrase stays legible on it.`;
+      const raw = await callChat(key, PICKER_MODEL, decisionSys, decisionUser, { schema: DECISION_SCHEMA, schemaName: "edit_decision" });
+      let parsed: { action: "tweak" | "rewrite"; template: string | null; palette: string[]; tempo: number } | null = null;
+      try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
+      const palette = cleanPalette(parsed?.palette ?? data.paletteHint, templateBase.palette);
+      const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? prior?.tempo ?? 1));
+
+      if (parsed?.action === "tweak" || !parsed) {
+        const nextTemplate = (parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
+          ? parsed.template as Exclude<TemplateId, "ai">
+          : currentTemplate;
+        return { template: nextTemplate, palette, phrase: finalPhrase, tempo, seed };
+      }
+
+      // Rewrite path — generate fresh AI source.
+      const user = [
+        `Card concept: ${data.prompt ?? "a heartfelt greeting"}`,
+        data.occasion ? `Occasion: ${data.occasion}` : null,
+        `Phrase to feature (must be legible): "${finalPhrase}"`,
+        `Palette (background first): ${JSON.stringify(palette)}`,
+        `Tempo: ${tempo}`,
+        data.motionHint ? `Motion feel: ${data.motionHint}` : null,
+        `Sender's request: ${instruction}`,
+      ].filter(Boolean).join("\n");
+      const sourceRaw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
+      return {
+        template: "ai",
+        palette,
+        phrase: finalPhrase,
+        tempo,
+        seed,
+        source: stripFences(sourceRaw),
+      };
+    }
+
+    // ------------------------------------------------------------------
+    // TEMPLATE MODE — pick a template + palette
+    // ------------------------------------------------------------------
     if (data.mode === "template") {
-      // Ask the model for a template id + palette + tempo. Cheap + reliable.
       const fallbackId = data.templateHint ?? suggestTemplate(data.occasion);
       const suggested = TEMPLATES.find((t) => t.id === fallbackId)!;
 
@@ -41,9 +276,9 @@ export const generateCodedCard = createServerFn({ method: "POST" })
         required: ["template", "palette", "tempo"],
       };
 
-      const system = `You pick an animated e-card template and a color palette. Return JSON matching the schema.
+      const system = `You pick an animated e-card template and a color palette. Return JSON.
 
-Available templates and their vibe:
+Templates:
 - confetti: celebratory, playful (birthdays, congrats)
 - fireworks: grand celebration (anniversaries, new year)
 - kinetic: quiet, elegant serif animation (thank you, thinking of you)
@@ -51,82 +286,46 @@ Available templates and their vibe:
 - starfield: contemplative, magical (get well, holidays)
 - ribbons: whimsical (just because, birthday)
 
-Palette: 3-5 hex colors. First color is the background. Remaining colors are used as accents/text. Contrast the phrase against the background.
-Tempo: 0.5 (slow, meditative) to 2 (fast, energetic). Default 1.`;
+Palette: 3-5 hex colors. palette[0] is background. Contrast the phrase against it.
+Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       const user = [
         data.prompt ? `Card idea: ${data.prompt}` : null,
         data.occasion ? `Occasion: ${data.occasion}` : null,
-        `The phrase that must remain legible: "${phrase}"`,
-        data.templateHint ? `The sender prefers the ${data.templateHint} template.` : null,
+        data.motionHint ? `Motion hint: ${data.motionHint}` : null,
+        data.paletteHint?.length ? `Palette hint: ${JSON.stringify(data.paletteHint)}` : null,
+        `Phrase (must remain legible): "${finalPhrase}"`,
+        data.templateHint ? `Sender prefers the ${data.templateHint} template.` : null,
       ].filter(Boolean).join("\n");
 
-      const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-3-flash-preview",
-          messages: [{ role: "system", content: system }, { role: "user", content: user }],
-          response_format: { type: "json_schema", json_schema: { name: "card_spec", strict: true, schema: OUT } },
-        }),
-      });
-      if (!res.ok) {
-        // Fallback to hard-coded suggestion so the user always sees something.
-        return { template: fallbackId, palette: suggested.palette, phrase, tempo: 1, seed };
-      }
-      const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-      const raw = json.choices?.[0]?.message?.content;
+      const raw = await callChat(key, PICKER_MODEL, system, user, { schema: OUT, schemaName: "card_spec" }).catch(() => "");
       let parsed: { template: string; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* fall through */ }
       const template = (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
         ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
-      const palette = (parsed?.palette ?? []).filter((c) => /^#[0-9a-fA-F]{3,8}$/.test(c));
-      const finalPalette = palette.length >= 3 ? palette.slice(0, 5) : suggested.palette;
+      const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));
-      return { template, palette: finalPalette, phrase, tempo, seed };
+      return { template, palette, phrase: finalPhrase, tempo, seed };
     }
 
-    // mode === "ai": ask model to write a self-contained function body.
-    const system = `You write ONE self-contained JavaScript function body that renders a beautiful animated greeting-card visual into a provided container element. The function will be invoked with these parameters: container (HTMLElement), phrase (string), palette (string[] of hex colors, first is background), tempo (number, 0.5=slow, 2=fast), seed (number).
-
-STRICT RULES:
-- Output ONLY the function body. No markdown, no code fences, no explanation, no imports.
-- Use only browser DOM/CSS/SVG/Canvas APIs. No fetch, no XHR, no eval, no import, no require, no window.parent, no cookies/storage.
-- The container fills a square. Make it look intentional at any size.
-- Render the phrase prominently. Use serif typography ("Instrument Serif", serif).
-- Use requestAnimationFrame for animations. Clean up is not required (single-mount).
-- Keep it under 3000 characters. Prefer elegant simplicity over feature stuffing.`;
+    // ------------------------------------------------------------------
+    // AI MODE — write a fresh self-contained animation
+    // ------------------------------------------------------------------
+    const fallback = TEMPLATES.find((t) => t.id === suggestTemplate(data.occasion))!;
+    const palette = cleanPalette(data.paletteHint, fallback.palette);
     const user = [
       data.prompt ? `Card concept: ${data.prompt}` : null,
       data.occasion ? `Occasion: ${data.occasion}` : null,
-      `Phrase to feature: "${phrase}"`,
-      "Surprise me with the visual — kinetic type, generative shapes, particles, gradients, or something poetic.",
+      `Phrase to feature (must be legible): "${finalPhrase}"`,
+      `Palette (background first): ${JSON.stringify(palette)}`,
+      data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
     ].filter(Boolean).join("\n");
-
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [{ role: "system", content: system }, { role: "user", content: user }],
-      }),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      if (res.status === 429) throw new Error("Rate limit — try again in a moment.");
-      if (res.status === 402) throw new Error("AI credits exhausted.");
-      throw new Error(`AI error: ${res.status} ${t}`);
-    }
-    const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    let source = json.choices?.[0]?.message?.content?.trim() ?? "";
-    // Strip accidental code fences.
-    source = source.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
-    const fallback = TEMPLATES.find((t) => t.id === suggestTemplate(data.occasion))!;
+    const raw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
     return {
       template: "ai",
-      palette: fallback.palette,
-      phrase,
+      palette,
+      phrase: finalPhrase,
       tempo: 1,
       seed,
-      source,
+      source: stripFences(raw),
     };
   });
