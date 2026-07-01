@@ -14,6 +14,7 @@ const Input = z.object({
   prompt: z.string().max(500).optional(),
   occasion: z.string().max(64).optional(),
   phrase: z.string().max(80).optional(),
+  message: z.string().max(600).optional(),
   mode: z.enum(["template", "ai", "edit"]),
   templateHint: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons"]).optional(),
   motionHint: z.string().max(120).optional(),
