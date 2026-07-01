@@ -393,6 +393,9 @@ function Create() {
                 onSend={(t) => handleSend(t)}
                 pendingPlan={pendingPlan}
                 medium={draft.medium}
+                setMedium={setMedium}
+                actionMode={actionMode}
+                setActionMode={setActionMode}
                 onBuild={commitPlan}
                 building={imgLoading || codeLoading || msgLoading}
                 initialText={initialPrompt ?? ""}
@@ -401,6 +404,7 @@ function Create() {
               <EditorPanel
                 draft={draft}
                 setDraft={setDraft}
+                setMedium={setMedium}
                 onBuild={editorBuild}
                 onRewriteMessage={rewriteMessage}
                 onRegenerateCode={regenerateCode}
@@ -413,39 +417,23 @@ function Create() {
 
           {/* Right: Preview + Send */}
           <div className="flex min-h-[600px] flex-col gap-4">
-            <div className="flex items-center justify-between">
-              <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
+            {draft.medium === "code" && draft.codeSpec && (
+              <div className="flex items-center justify-end gap-2">
                 <button
-                  onClick={() => setMedium("art")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={shufflePalette}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
                 >
-                  <Palette className="h-3 w-3" /> Art
+                  <Shuffle className="h-3 w-3" /> Shuffle
                 </button>
                 <button
-                  onClick={() => setMedium("code")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  onClick={() => regenerateCode({ mode: "ai" })}
+                  disabled={codeLoading}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
                 >
-                  <Code2 className="h-3 w-3" /> Code
+                  <Sparkles className="h-3 w-3" /> Surprise me
                 </button>
               </div>
-              {draft.medium === "code" && draft.codeSpec && (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={shufflePalette}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                  >
-                    <Shuffle className="h-3 w-3" /> Shuffle
-                  </button>
-                  <button
-                    onClick={() => regenerateCode({ mode: "ai" })}
-                    disabled={codeLoading}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                  >
-                    <Sparkles className="h-3 w-3" /> Surprise me
-                  </button>
-                </div>
-              )}
-            </div>
+            )}
 
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
@@ -456,7 +444,7 @@ function Create() {
                         <Palette className="h-5 w-5" />
                         <Code2 className="h-5 w-5" />
                       </div>
-                      <p>Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> above to begin.</p>
+                      <p>Pick a medium in the composer to begin.</p>
                     </div>
                   </div>
                 ) : draft.medium === "art" ? (
