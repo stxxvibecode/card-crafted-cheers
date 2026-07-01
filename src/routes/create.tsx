@@ -8,6 +8,7 @@ import { generateMessage, saveCard, sendCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
+import { CodeViewer } from "@/lib/codedCards/CodeViewer";
 import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
 import {
