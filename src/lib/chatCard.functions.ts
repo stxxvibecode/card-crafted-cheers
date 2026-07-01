@@ -12,6 +12,7 @@ const DraftSchema = z.object({
   message: z.string().max(4000).optional(),
   recipientName: z.string().max(80).optional(),
   senderName: z.string().max(80).optional(),
+  medium: z.enum(["art", "code"]).optional(),
 });
 
 const ChatInput = z.object({
@@ -49,6 +50,18 @@ const OUT_SCHEMA = {
         },
         recipientName: { type: ["string", "null"] },
         senderName: { type: ["string", "null"] },
+        medium: {
+          type: ["string", "null"],
+          enum: ["art", "code", null],
+          description:
+            "Set to 'code' if the user asks for something animated / playful / interactive / coded / kinetic; set to 'art' if they ask for a painted / illustrated / hand-drawn look; null to keep current medium.",
+        },
+        codeTemplate: {
+          type: ["string", "null"],
+          enum: ["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai", null],
+          description:
+            "Only when medium is 'code'. Suggest a template that fits: confetti/fireworks (celebration), kinetic (quiet elegance), hearts (love), starfield (contemplative), ribbons (whimsical), or 'ai' when the user asks to surprise them.",
+        },
         regenerateImage: {
           type: "boolean",
           description:
@@ -61,6 +74,8 @@ const OUT_SCHEMA = {
         "message",
         "recipientName",
         "senderName",
+        "medium",
+        "codeTemplate",
         "regenerateImage",
       ],
     },
@@ -76,13 +91,15 @@ export const chatCard = createServerFn({ method: "POST" })
 
     const system = `You are Pigeon, a gentle assistant helping someone craft a personal e-card. You collaborate through short conversation.
 
-You maintain a card draft with: prompt (image description), occasion, message (2-4 warm handwritten sentences), recipientName, senderName.
+You maintain a card draft with: prompt (image description), occasion, message (2-4 warm handwritten sentences), recipientName, senderName, and medium ("art" for AI painted illustration or "code" for a live animated coded card).
 
 On each turn, decide what should change based on the user's latest message. Respond with JSON matching the provided schema:
 - "reply": a warm, brief chat reply (1-3 sentences) — acknowledge and describe what you're changing. Never dump the card message in the reply.
 - "updates": only include fields that should CHANGE. Use null for fields to leave unchanged.
-- Set "regenerateImage" to true whenever the visual should be repainted (new prompt, or user asks to redo the art). Set to false for message-only edits.
-- IMPORTANT: The artwork itself contains the occasion phrase as hand-lettered typography (e.g. a "Thank you" card literally shows the words "Thank You" painted into the illustration). So whenever the occasion is set OR changed (e.g. user says "make it a thank you card", "actually a birthday one"), you MUST also set regenerateImage: true so the on-image lettering updates. If the occasion changes but the visual subject shouldn't, keep the existing prompt (pass it back in "prompt") and still set regenerateImage: true.
+- Set "regenerateImage" to true whenever the ART visual should be repainted (new prompt, or user asks to redo the art). Set to false for message-only edits or when the medium is code.
+- IMPORTANT (art only): The artwork itself contains the occasion phrase as hand-lettered typography (e.g. a "Thank you" card literally shows the words "Thank You" painted into the illustration). Whenever the occasion is set OR changed AND medium is "art", set regenerateImage: true so the on-image lettering updates.
+- MEDIUM: If the user asks for something animated/playful/interactive/coded/kinetic/"a coded card"/"surprise me with code", set medium: "code" and pick a codeTemplate that fits. If they ask for a painted/illustrated/hand-drawn look, set medium: "art". Otherwise leave medium null.
+- When you set medium to "code", also set codeTemplate (confetti/fireworks for celebrations, kinetic for elegance, hearts for love, starfield for contemplative, ribbons for whimsical, or "ai" if the user explicitly wants a surprise generative one). Do NOT set regenerateImage for code cards — the client repaints the coded card itself.
 
 If the sender hasn't described the card yet, ask a single warm question — do not invent updates.
 The card message should never start with "Dear ___" and should never sign a name. 2-4 sentences, sincere, specific.
@@ -129,6 +146,8 @@ ${JSON.stringify(data.draft, null, 2)}`;
         message: string | null;
         recipientName: string | null;
         senderName: string | null;
+        medium: "art" | "code" | null;
+        codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
         regenerateImage: boolean;
       };
     };

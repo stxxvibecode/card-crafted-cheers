@@ -64,11 +64,23 @@ const SaveInput = z.object({
   prompt: z.string().min(1).max(500),
   occasion: z.string().max(64).optional(),
   message: z.string().min(1).max(4000),
-  imageDataUrl: z.string().min(20).max(8_000_000), // ~6MB base64
+  medium: z.enum(["art", "code"]).default("art"),
+  imageDataUrl: z.string().min(20).max(8_000_000).optional(),
+  codeSpec: z.object({
+    template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]),
+    palette: z.array(z.string()).min(3).max(5),
+    phrase: z.string().min(1).max(80),
+    tempo: z.number().min(0.4).max(2),
+    seed: z.number(),
+    source: z.string().max(12000).optional(),
+  }).optional(),
   senderName: z.string().max(80).optional(),
   recipientName: z.string().min(1).max(80),
   recipientEmail: z.string().email().max(200),
-});
+}).refine(
+  (v) => (v.medium === "art" ? !!v.imageDataUrl : !!v.codeSpec),
+  { message: "Art cards need an image; code cards need a codeSpec." },
+);
 
 export const saveCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => SaveInput.parse(raw))
@@ -93,7 +105,9 @@ export const saveCard = createServerFn({ method: "POST" })
         prompt: data.prompt,
         occasion: data.occasion ?? null,
         message: data.message,
-        image_url: data.imageDataUrl,
+        medium: data.medium,
+        image_url: data.imageDataUrl ?? null,
+        code_spec: data.codeSpec ?? null,
         sender_name: data.senderName ?? null,
         recipient_name: data.recipientName,
         recipient_email: data.recipientEmail,

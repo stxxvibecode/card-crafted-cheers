@@ -6,6 +6,10 @@ import { SiteNav } from "@/components/site-nav";
 import { streamImage } from "@/lib/streamImage";
 import { generateMessage, saveCard, sendCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
+import { generateCodedCard } from "@/lib/codedCards.functions";
+import { CodedCard } from "@/lib/codedCards/CodedCard";
+import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
+import { phraseFor } from "@/lib/occasion";
 import {
   Loader2,
   RefreshCw,
@@ -14,6 +18,10 @@ import {
   Pencil,
   ArrowUp,
   Bird,
+  Palette,
+  Code2,
+  Sparkles,
+  Shuffle,
 } from "lucide-react";
 import { z } from "zod";
 import {
@@ -39,7 +47,9 @@ export const Route = createFileRoute("/create")({
 
 const OCCASIONS = ["Birthday", "Thank you", "Congrats", "Get well", "Holiday", "Anniversary", "Just because"];
 
-type ChatMsg = { id: string; role: "user" | "assistant"; content: string; pending?: boolean };
+type ChatMsg = { id: string; role: "user" | "assistant"; content: string };
+
+type Medium = "art" | "code";
 
 type Draft = {
   prompt: string;
@@ -48,6 +58,8 @@ type Draft = {
   recipientName: string;
   recipientEmail: string;
   senderName: string;
+  medium: Medium;
+  codeSpec?: CodeSpec;
 };
 
 function Create() {
@@ -61,12 +73,14 @@ function Create() {
     recipientName: "",
     recipientEmail: "",
     senderName: "",
+    medium: "art",
   });
 
   const [image, setImage] = useState<string | null>(null);
   const [isFinalImage, setIsFinalImage] = useState(false);
   const [imgLoading, setImgLoading] = useState(false);
   const [msgLoading, setMsgLoading] = useState(false);
+  const [codeLoading, setCodeLoading] = useState(false);
   const [sending, setSending] = useState(false);
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
@@ -76,8 +90,8 @@ function Create() {
       role: "assistant",
       content:
         initialPrompt
-          ? "Lovely — I'll start with that. Want me to lean warm and whimsical, or quieter and elegant?"
-          : "Hi, I'm Pigeon. Tell me who this card is for and what you'd like it to feel like.",
+          ? "Lovely — I'll start with that. Want the card as a painted illustration, or a live animated one?"
+          : "Hi, I'm Pigeon. Tell me who this card is for and how you'd like it to feel. Painted art, or something animated and coded?",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
@@ -86,6 +100,10 @@ function Create() {
   const saveFn = useServerFn(saveCard);
   const sendFn = useServerFn(sendCard);
   const chatFn = useServerFn(chatCard);
+  const codeFn = useServerFn(generateCodedCard);
+
+  const draftRef = useRef(draft);
+  useEffect(() => { draftRef.current = draft; }, [draft]);
 
   const regenerateImage = useCallback(async (imagePrompt: string, occasion?: string) => {
     setImage(null); setIsFinalImage(false); setImgLoading(true);
@@ -100,6 +118,31 @@ function Create() {
       setImgLoading(false);
     }
   }, []);
+
+  const regenerateCode = useCallback(async (opts: {
+    mode: "template" | "ai";
+    templateHint?: Exclude<TemplateId, "ai">;
+    phrase?: string;
+  }) => {
+    const d = draftRef.current;
+    setCodeLoading(true);
+    try {
+      const spec = await codeFn({
+        data: {
+          prompt: d.prompt || undefined,
+          occasion: d.occasion,
+          phrase: opts.phrase ?? d.codeSpec?.phrase ?? phraseFor(d.occasion),
+          mode: opts.mode,
+          templateHint: opts.templateHint,
+        },
+      });
+      setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Coded card failed");
+    } finally {
+      setCodeLoading(false);
+    }
+  }, [codeFn]);
 
   // Auto-kick generation if arriving with a prompt in the URL
   const kickedRef = useRef(false);
@@ -130,12 +173,13 @@ function Create() {
             message: currentDraft.message || undefined,
             recipientName: currentDraft.recipientName || undefined,
             senderName: currentDraft.senderName || undefined,
+            medium: currentDraft.medium,
           },
         },
       });
 
-      // Apply updates
       const u = res.updates;
+      const newMedium = (u.medium ?? currentDraft.medium) as Medium;
       setDraft((d) => ({
         ...d,
         prompt: u.prompt ?? d.prompt,
@@ -143,14 +187,29 @@ function Create() {
         message: u.message ?? d.message,
         recipientName: u.recipientName ?? d.recipientName,
         senderName: u.senderName ?? d.senderName,
+        medium: newMedium,
       }));
 
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: res.reply }]);
 
       const newPrompt = u.prompt ?? draftRef.current.prompt;
       const newOccasion = u.occasion ?? draftRef.current.occasion;
-      if (u.regenerateImage && newPrompt?.trim()) {
+
+      if (newMedium === "art" && u.regenerateImage && newPrompt?.trim()) {
         void regenerateImage(newPrompt, newOccasion ?? undefined);
+      }
+      if (newMedium === "code") {
+        const hint = u.codeTemplate;
+        const isAi = hint === "ai";
+        const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
+        // Repaint if medium switched, template hint changed, or occasion changed
+        const shouldRepaint =
+          currentDraft.medium !== "code" ||
+          (!!templateHint && draftRef.current.codeSpec?.template !== templateHint) ||
+          !!u.occasion;
+        if (shouldRepaint || isAi) {
+          void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
+        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Chat failed");
@@ -159,15 +218,15 @@ function Create() {
     }
   }
 
-  // Keep a ref to draft so async callbacks see the latest.
-  const draftRef = useRef(draft);
-  useEffect(() => { draftRef.current = draft; }, [draft]);
-
   async function editorGenerateAll() {
     const p = draft.prompt.trim();
     if (!p) { toast.error("Describe the card you want first."); return; }
     setMsgLoading(true);
-    void regenerateImage(p, draft.occasion);
+    if (draft.medium === "art") {
+      void regenerateImage(p, draft.occasion);
+    } else {
+      void regenerateCode({ mode: "template" });
+    }
     try {
       const r = await msgFn({ data: {
         prompt: p, occasion: draft.occasion,
@@ -197,8 +256,31 @@ function Create() {
     } finally { setMsgLoading(false); }
   }
 
+  function setMedium(m: Medium) {
+    if (draft.medium === m) return;
+    setDraft((d) => ({ ...d, medium: m }));
+    if (m === "code" && !draftRef.current.codeSpec) {
+      void regenerateCode({ mode: "template" });
+    }
+  }
+
+  function shufflePalette() {
+    const spec = draft.codeSpec; if (!spec) return;
+    const others = TEMPLATES.flatMap((t) => t.palette);
+    const shuffled = [...spec.palette].sort(() => Math.random() - 0.5);
+    // Swap two accents with random ones from the pool to keep it fresh
+    shuffled[1] = others[Math.floor(Math.random() * others.length)];
+    shuffled[shuffled.length - 1] = others[Math.floor(Math.random() * others.length)];
+    setDraft((d) => ({ ...d, codeSpec: { ...spec, palette: shuffled, seed: Math.floor(Math.random() * 1e6) } }));
+  }
+
   async function send() {
-    if (!image || !isFinalImage) { toast.error("Wait for the image to finish rendering."); return; }
+    if (draft.medium === "art" && (!image || !isFinalImage)) {
+      toast.error("Wait for the image to finish rendering."); return;
+    }
+    if (draft.medium === "code" && !draft.codeSpec) {
+      toast.error("Generate the coded card first."); return;
+    }
     if (!draft.message.trim()) { toast.error("The card has no message yet."); return; }
     if (!draft.recipientName.trim() || !draft.recipientEmail.trim()) { toast.error("Add recipient name and email."); return; }
     setSending(true);
@@ -207,7 +289,9 @@ function Create() {
         prompt: draft.prompt.trim() || "custom",
         occasion: draft.occasion,
         message: draft.message.trim(),
-        imageDataUrl: image,
+        medium: draft.medium,
+        imageDataUrl: draft.medium === "art" ? image ?? undefined : undefined,
+        codeSpec: draft.medium === "code" ? draft.codeSpec : undefined,
         senderName: draft.senderName.trim() || undefined,
         recipientName: draft.recipientName.trim(),
         recipientEmail: draft.recipientEmail.trim(),
@@ -221,6 +305,8 @@ function Create() {
       setSending(false);
     }
   }
+
+  const previewBusy = draft.medium === "art" ? imgLoading : codeLoading;
 
   return (
     <div className="min-h-screen bg-background">
@@ -262,27 +348,78 @@ function Create() {
                 setDraft={setDraft}
                 onGenerateAll={editorGenerateAll}
                 onRewriteMessage={rewriteMessage}
+                onRegenerateCode={regenerateCode}
                 imgLoading={imgLoading}
                 msgLoading={msgLoading}
+                codeLoading={codeLoading}
               />
             )}
           </div>
 
           {/* Right: Preview + Send */}
           <div className="flex min-h-[600px] flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
+                <button
+                  onClick={() => setMedium("art")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Palette className="h-3 w-3" /> Art
+                </button>
+                <button
+                  onClick={() => setMedium("code")}
+                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Code2 className="h-3 w-3" /> Code
+                </button>
+              </div>
+              {draft.medium === "code" && draft.codeSpec && (
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={shufflePalette}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Shuffle className="h-3 w-3" /> Shuffle
+                  </button>
+                  <button
+                    onClick={() => regenerateCode({ mode: "ai" })}
+                    disabled={codeLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    <Sparkles className="h-3 w-3" /> Surprise me
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
-              <div className="relative aspect-square w-full bg-gradient-to-br from-muted to-background">
-                {image ? (
-                  <img
-                    src={image}
-                    alt="Card preview"
-                    className={`h-full w-full object-cover transition-[filter] duration-500 ${isFinalImage ? "blur-0" : "blur-2xl"}`}
-                  />
+              <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
+                {draft.medium === "art" ? (
+                  image ? (
+                    <img
+                      src={image}
+                      alt="Card preview"
+                      className={`h-full w-full object-cover transition-[filter] duration-500 ${isFinalImage ? "blur-0" : "blur-2xl"}`}
+                    />
+                  ) : (
+                    <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                      {imgLoading ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
+                      ) : "Your card will appear here"}
+                    </div>
+                  )
+                ) : draft.codeSpec ? (
+                  <CodedCard spec={draft.codeSpec} />
                 ) : (
                   <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                    {imgLoading ? (
-                      <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
-                    ) : "Your card will appear here"}
+                    {codeLoading ? (
+                      <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Composing…</span>
+                    ) : "Your coded card will appear here"}
+                  </div>
+                )}
+                {previewBusy && (image || draft.codeSpec) && (
+                  <div className="absolute right-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground backdrop-blur">
+                    updating…
                   </div>
                 )}
               </div>
@@ -321,7 +458,11 @@ function Create() {
                 />
                 <button
                   onClick={send}
-                  disabled={sending || !image || !isFinalImage || !draft.message}
+                  disabled={
+                    sending ||
+                    !draft.message ||
+                    (draft.medium === "art" ? !image || !isFinalImage : !draft.codeSpec)
+                  }
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
                 >
                   {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
@@ -419,17 +560,21 @@ function EditorPanel({
   setDraft,
   onGenerateAll,
   onRewriteMessage,
+  onRegenerateCode,
   imgLoading,
   msgLoading,
+  codeLoading,
 }: {
   draft: Draft;
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
   onGenerateAll: () => void;
   onRewriteMessage: () => void;
+  onRegenerateCode: (opts: { mode: "template" | "ai"; templateHint?: Exclude<TemplateId, "ai"> }) => void;
   imgLoading: boolean;
   msgLoading: boolean;
+  codeLoading: boolean;
 }) {
-  const busy = imgLoading || msgLoading;
+  const busy = imgLoading || msgLoading || codeLoading;
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
       <div>
@@ -459,9 +604,51 @@ function EditorPanel({
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
         >
           {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Regenerate art & message
+          Regenerate {draft.medium === "code" ? "coded card" : "art"} & message
         </button>
       </div>
+
+      {draft.medium === "code" && (
+        <div>
+          <label className="text-xs uppercase tracking-wide text-muted-foreground">Coded template</label>
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {TEMPLATES.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => onRegenerateCode({ mode: "template", templateHint: t.id })}
+                disabled={codeLoading}
+                className={`rounded-full border px-2.5 py-1 text-xs transition ${draft.codeSpec?.template === t.id ? "border-primary bg-primary/20 text-foreground" : "border-border text-muted-foreground hover:text-foreground"} disabled:opacity-40`}
+              >
+                {t.name}
+              </button>
+            ))}
+            <button
+              onClick={() => onRegenerateCode({ mode: "ai" })}
+              disabled={codeLoading}
+              className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition ${draft.codeSpec?.template === "ai" ? "border-primary bg-primary/20 text-foreground" : "border-border text-muted-foreground hover:text-foreground"} disabled:opacity-40`}
+            >
+              <Sparkles className="h-3 w-3" /> Surprise me
+            </button>
+          </div>
+          {draft.codeSpec && (
+            <div className="mt-3">
+              <label className="text-xs uppercase tracking-wide text-muted-foreground">Tempo</label>
+              <input
+                type="range"
+                min={0.5}
+                max={2}
+                step={0.1}
+                value={draft.codeSpec.tempo}
+                onChange={(e) => {
+                  const tempo = parseFloat(e.target.value);
+                  setDraft((d) => (d.codeSpec ? { ...d, codeSpec: { ...d.codeSpec, tempo } } : d));
+                }}
+                className="mt-2 w-full"
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="text-xs uppercase tracking-wide text-muted-foreground">Message</label>

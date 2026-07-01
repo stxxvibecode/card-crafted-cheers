@@ -16,9 +16,11 @@ export type Database = {
     Tables: {
       cards: {
         Row: {
+          code_spec: Json | null
           created_at: string
           id: string
-          image_url: string
+          image_url: string | null
+          medium: string
           message: string
           occasion: string | null
           prompt: string
@@ -29,9 +31,11 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          code_spec?: Json | null
           created_at?: string
           id?: string
-          image_url: string
+          image_url?: string | null
+          medium?: string
           message: string
           occasion?: string | null
           prompt: string
@@ -42,9 +46,11 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          code_spec?: Json | null
           created_at?: string
           id?: string
-          image_url?: string
+          image_url?: string | null
+          medium?: string
           message?: string
           occasion?: string | null
           prompt?: string
