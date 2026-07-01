@@ -338,7 +338,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `Palette (background first): ${JSON.stringify(palette)}`,
       data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
     ].filter(Boolean).join("\n");
-    const raw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
+    const raw = await callChat(model, CODE_SYSTEM, user);
     return {
       template: "ai",
       palette,
