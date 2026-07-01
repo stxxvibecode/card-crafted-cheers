@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { TEMPLATES, suggestTemplate, type CodeSpec, type TemplateId } from "./codedCards/registry";
 import { phraseFor } from "./occasion";
+import { lavaChat } from "./lava.server";
 
 const PriorSchema = z.object({
   template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]).optional(),
@@ -21,13 +22,11 @@ const Input = z.object({
   paletteHint: z.array(z.string()).max(5).optional(),
   instruction: z.string().max(500).optional(),
   prior: PriorSchema.optional(),
+  model: z.string().max(120).optional(),
 });
 
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
 
-const CODE_MODEL = "google/gemini-3.5-flash";
-const PICKER_MODEL = "google/gemini-3-flash-preview";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that renders a beautiful animated greeting-card visual into a provided container element.
 
