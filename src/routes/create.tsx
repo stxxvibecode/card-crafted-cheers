@@ -282,6 +282,7 @@ function Create() {
       const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
       const motionHint = plan.codeMotion ?? undefined;
       const paletteHint = plan.codePalette ?? undefined;
+      const messageForCard = nextMessage || undefined;
 
       // If we already have a code spec, iterate on it via edit mode.
       if (currentDraft.codeSpec) {
@@ -291,6 +292,7 @@ function Create() {
           motionHint,
           paletteHint,
           instruction: plan.instruction,
+          message: messageForCard,
         });
       } else {
         void regenerateCode({
@@ -298,6 +300,7 @@ function Create() {
           templateHint,
           motionHint,
           paletteHint,
+          message: messageForCard,
         });
       }
     }
