@@ -158,11 +158,6 @@ export const generateCodedCard = createServerFn({ method: "POST" })
     const key = process.env.LOVABLE_API_KEY;
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
-    const phrase =
-      data.phrase?.trim() ||
-      data.prior?.source ? data.prior?.template === "ai" ? (data.phrase?.trim() || phraseFor(data.occasion) || "With Love") : (phraseFor(data.occasion) || "With Love")
-      : phraseFor(data.occasion) || "With Love";
-
     const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
     const seed = Math.floor(Math.random() * 1_000_000);
 
