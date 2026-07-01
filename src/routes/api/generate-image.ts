@@ -11,7 +11,26 @@ export const Route = createFileRoute("/api/generate-image")({
           return new Response("Invalid prompt", { status: 400 });
         }
 
-        const styled = `A beautiful, warm, hand-illustrated e-card artwork${occasion ? ` for a ${occasion} card` : ""}. Subject: ${prompt}. Painterly, soft light, joyful, greeting-card composition, no text, no watermarks, centered subject with tasteful negative space.`;
+        const phraseMap: Record<string, string> = {
+          "birthday": "Happy Birthday",
+          "thank you": "Thank You",
+          "thank-you": "Thank You",
+          "thanks": "Thank You",
+          "congrats": "Congratulations",
+          "congratulations": "Congratulations",
+          "get well": "Get Well Soon",
+          "holiday": "Happy Holidays",
+          "anniversary": "Happy Anniversary",
+          "love": "With Love",
+          "thinking of you": "Thinking of You",
+        };
+        const phrase = occasion ? phraseMap[occasion.trim().toLowerCase()] : undefined;
+
+        const typography = phrase
+          ? ` Integrate the phrase "${phrase}" as the focal typographic element of the illustration — elegant hand-lettered or hand-painted script that feels part of the artwork (woven into florals, ribbons, clouds, or negative space). Spell it EXACTLY as "${phrase}", once only, no additional words, letters, numbers, watermarks, or signatures anywhere else in the image.`
+          : " No text, letters, numbers, or watermarks anywhere in the image.";
+
+        const styled = `A beautiful, warm, hand-illustrated greeting-card artwork${occasion ? ` for a ${occasion} card` : ""}. Subject: ${prompt}. Painterly, soft light, joyful, tasteful greeting-card composition with negative space for the typography.${typography}`;
 
         const upstream = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
           method: "POST",
