@@ -94,15 +94,15 @@ export const chatCard = createServerFn({ method: "POST" })
 
 Draft fields: prompt (image description), occasion, message (2-4 warm handwritten sentences), recipientName, senderName, medium ("art" = painted illustration, "code" = live animated coded card).
 
-Medium status: ${mediumChosen ? `already chosen — "${data.draft.medium}".` : "NOT YET CHOSEN. The sender must tap Art or Code above the preview before anything can be built."}
+Medium: ${mediumChosen ? `chosen — "${data.draft.medium}".` : "not yet chosen — but the composer forces the sender to pick Art or Code before they can send a message, so assume one will be set by the time you build."}
 
 On each turn respond with JSON matching the schema:
-- "reply": warm, brief (1-3 sentences). Describe the plan you're proposing. ${mediumChosen ? "" : "If medium is not yet chosen, gently ask the sender to tap Art or Code above the preview, and (optionally) suggest which one might fit — but do NOT set the medium field yourself in that case."} Never dump the card message text into the reply.
+- "reply": warm, brief (1-3 sentences). Describe the plan you're proposing. Never dump the card message text into the reply.
 - "updates": propose the fields that should change. Use null to leave a field unchanged.
 - "regenerateImage": true whenever the ART visual should be repainted from the (new or existing) prompt. False for text-only edits or when medium is code.
 - Whenever occasion changes AND medium is "art", set regenerateImage: true — the artwork hand-letters the occasion phrase into the illustration.
-- MEDIUM: Only propose a medium value when the user's message clearly indicates one (animated/coded/kinetic → "code"; painted/illustrated → "art"). Otherwise leave medium null and let the sender pick via the chip.
-- When proposing "code", also propose codeTemplate (confetti/fireworks = celebration, kinetic = elegance, hearts = love, starfield = contemplative, ribbons = whimsical, "ai" = surprise generative). Do not set regenerateImage for code cards.
+- MEDIUM: leave medium null unless the user explicitly asks to switch. The composer selection is the source of truth.
+- When medium is "code", propose codeTemplate (confetti/fireworks = celebration, kinetic = elegance, hearts = love, starfield = contemplative, ribbons = whimsical, "ai" = surprise generative). Do not set regenerateImage for code cards.
 
 If the sender hasn't described the card yet, ask a single warm question and leave all updates null.
 The card message never starts with "Dear ___" and never signs a name. 2-4 sincere, specific sentences.
