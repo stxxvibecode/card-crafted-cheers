@@ -1,47 +1,59 @@
-## Problem
+## Goal
 
-On code cards, the animation only displays the short occasion phrase ("Happy Birthday" — the "two words" you're seeing). Your actual card message never makes it into the coded visual. Root cause in `src/lib/codedCards.functions.ts`:
+Route every AI call in Pigeon (chat planner, message writer, coded-card generator, image generator) through the **lava.so gateway** and let the user pick the model from a dropdown next to the Plan/Build control.
 
-```
-const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
-```
+## How lava.so fits
 
-…and in `src/routes/create.tsx` (`regenerateCode`) we pass `d.codeSpec?.phrase ?? phraseFor(d.occasion)` — the message is never sent.
+- Lava is an OpenAI-compatible gateway. We authenticate with a single `LAVA_SECRET_KEY` (Bearer header) and hit `https://api.lava.so/v1/...` — same request shape as OpenAI.
+- Model catalog is discoverable at `GET /v1/models` — we fetch it once at runtime and cache it, so "all LLMs" show up automatically without hard-coding.
+- Same secret works for chat, images, and model listing.
 
-The message *does* appear as a caption under the preview, but the animation itself never renders it.
+## Setup
 
-## Fix
+1. Add `LAVA_SECRET_KEY` via the secure secret form (user pastes their key from lava.so dashboard → Gateway → Secrets).
+2. No other keys or connectors needed.
 
-Treat the coded card like the art card: it should render both the occasion headline **and** the full personal message, and regenerate whenever either changes.
+## Backend
 
-### 1. `src/lib/codedCards/registry.ts` — extend CodeSpec
+New server route `src/routes/api/models.ts` — `GET` proxies `https://api.lava.so/v1/models`, returns `{ chat: Model[], image: Model[] }` split by capability (heuristic: id contains `image`, `dall`, `flux`, `gemini-*-image` → image; else chat). Cached in-memory for 5 min.
 
-Add an optional `message: string` alongside `phrase` so templates and AI code can render both.
+Rewrite existing AI callers to use lava:
+- `src/lib/chatCard.functions.ts` (planner) — swap the Lovable AI gateway helper for a small `lavaChat(model, messages, { json? })` helper that POSTs `https://api.lava.so/v1/chat/completions` with `Bearer $LAVA_SECRET_KEY`.
+- `src/lib/codedCards.functions.ts` (code generator + edit) — same helper.
+- Message rewriter (wherever `rewriteMessage` lives) — same helper.
+- `src/routes/api/generate-image.ts` — repoint to `https://api.lava.so/v1/images/generations`, keep `stream: true` passthrough, model comes from request body instead of hard-coded `openai/gpt-image-2`.
 
-### 2. `src/lib/codedCards.functions.ts`
+Each caller accepts a `model` field from the client and forwards it verbatim to lava. Fallback when the client sends none: env-driven defaults — `LAVA_CHAT_MODEL` (default `gemini-2.5-flash`) and `LAVA_IMAGE_MODEL` (default `openai/gpt-image-1`). We drop the Lovable AI Gateway usage in these paths.
 
-- Input schema: add `message: z.string().max(600).optional()`.
-- Thread `finalMessage = data.message?.trim() ?? ""` through every return (template, ai, edit-tweak, edit-rewrite).
-- Update `CODE_SYSTEM` so the invocation contract includes `message: string` (may be empty), with rules:
-  - `phrase` is the big headline (top of card, large serif).
-  - `message` is the personal note (smaller, wrapped, secondary weight) rendered below/beside phrase when non-empty.
-  - Both must fit the square; wrap long messages and auto-size.
-- Update `EDIT_SYSTEM` invocation contract the same way, and pass current message in the edit user prompt.
-- Update the two REFERENCE snippets to show phrase + message layout (headline + wrapped subtitle).
+## Frontend
 
-### 3. Templates — accept and render `message`
+New store `src/lib/modelStore.ts` — Zustand (or plain React context) persisting `{ chatModel, imageModel }` to `localStorage`. Loaded on `/create` mount.
 
-Update the six templates in `src/lib/codedCards/templates/` (Confetti, Fireworks, KineticSerif, Hearts, Starfield, Ribbons) plus `CodedCard.tsx` to accept a `message` prop and render it as a wrapped secondary caption under the phrase when present. Keep layout unchanged when `message` is empty (backwards compatible with existing cards).
+New component `src/components/ModelPicker.tsx`:
+- Fetches `/api/models` once, splits into Chat / Image groups.
+- Compact popover dropdown with search, grouped by `owned_by` (openai, anthropic, google, xai, mistral, …).
+- Two-tab selector inside: **Chat model** and **Image model** — so one control covers both.
+- Trigger button shows current chat model name + chevron; sits **left of the Plan/Build dropdown** in the composer footer of `src/routes/create.tsx`.
 
-### 4. `src/routes/create.tsx`
+Wire selections into every generate call:
+- `commitPlan`, `editorBuild`, `rewriteMessage`, and the chat planner request all include `model: chatModel`.
+- `regenerateCode` / coded-card generation includes `model: chatModel` (code generation is chat-completion).
+- Streaming image request in `create.tsx` includes `model: imageModel`.
 
-- In `regenerateCode`, pass `message: d.message` and default `phrase` to `phraseFor(d.occasion)` (drop the message-as-phrase confusion).
-- In the chat "apply plan" and "message updated" flows, trigger `regenerateCode({ mode: "edit" })` (or template rebuild) whenever `draft.message` changes while `medium === "code"`, so the card stays in sync — same behavior we already have for occasion → art.
+Landing hero `/` stays as-is; the picker only appears on `/create` where generation happens.
 
-### 5. `src/lib/chatCard.functions.ts`
+## Error handling
 
-Update the system prompt to note that for code cards, changing the message also warrants a code refresh (mirrors the existing art rule for occasion changes).
+Surface lava gateway errors verbatim in the chat as a system message ("Lava: 402 insufficient credits", "Lava: model not found") so the user knows to top up or pick another model. 429 shows a "rate limited" toast; other 4xx/5xx surface the response body.
 
-## Result
+## Out of scope
 
-Code cards will show your full message ("Happy Birthday, Sarah! Hope your day is filled with…") animated into the design, with the short occasion phrase as the headline — matching how art cards hand-letter both.
+- No billing UI, no forward tokens (single-wallet setup — costs hit the user's own lava wallet via their secret key).
+- No changes to auth, DB schema, or share/email flow.
+- Lovable AI Gateway is fully removed from the runtime path once lava is wired; the secret can stay but is unused.
+
+## Files touched
+
+- New: `src/routes/api/models.ts`, `src/components/ModelPicker.tsx`, `src/lib/modelStore.ts`, `src/lib/lava.server.ts` (shared fetch helper).
+- Edited: `src/routes/api/generate-image.ts`, `src/lib/chatCard.functions.ts`, `src/lib/codedCards.functions.ts`, `src/routes/create.tsx`.
+- Secret: `LAVA_SECRET_KEY` added via secure form.
