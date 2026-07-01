@@ -12,6 +12,7 @@ const DraftSchema = z.object({
   message: z.string().max(4000).optional(),
   recipientName: z.string().max(80).optional(),
   senderName: z.string().max(80).optional(),
+  medium: z.enum(["art", "code"]).optional(),
 });
 
 const ChatInput = z.object({
