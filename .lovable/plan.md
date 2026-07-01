@@ -1,55 +1,30 @@
+## Move medium selection into the composer
 
-## Goal
+Right now Art vs. Code lives on chips inside the plan card — users only see them after Pigeon replies. Move the pick up-front to a dropdown that sits next to the Build/Plan control in the `PromptInput` footer, so the medium is chosen before the first message is sent (mirroring Lovable's Chat/Build dropdown pattern).
 
-Nothing renders or generates on `/create` until the user (1) picks a medium chip — **Art** or **Code** — and (2) confirms a plan for their prompt. Mirrors Lovable's plan-then-build flow: chat proposes, user hits **Build** to commit.
+### UI changes (`src/routes/create.tsx`)
 
-## Behavior changes
+1. **Composer footer** — replace the lone submit button with a segmented control:
+   - A **mode dropdown** ("Plan" / "Build") — the primary action label on the send button.
+   - A **medium dropdown** ("Art" / "Code") shown to the left of the mode/send button, defaulting to unset with a placeholder "Choose medium".
+   - Send button is disabled until a medium is chosen; tooltip explains why.
+   - Selected medium persists in `draft.medium` from the first submission onward.
 
-### 1. Medium starts unselected
-- `draft.medium` becomes `"art" | "code" | undefined`, defaulting to `undefined`.
-- Preview pane shows an empty "Pick Art or Code to begin" state instead of the art placeholder.
-- Art/Code chips act as a required first choice; once chosen, chip stays sticky but can be swapped (swapping clears any pending plan + preview).
+2. **Plan card** — remove the Art/Code chip row. The card now just summarizes what Pigeon will build (using the already-chosen medium) and shows a single **Build** button (or auto-builds if the user picked "Build" mode in the composer).
 
-### 2. No auto-kick from URL prompt
-- Remove the `useEffect` that auto-calls `handleSend(initialPrompt)`.
-- If `?prompt=` is present, seed it into the chat input (and the editor prompt field) but do NOT send. The assistant's seed message asks the user to pick Art or Code first.
+3. **Editor mode** — keep the Art/Code toggle in the editor pane (it's the manual surface), but read/write the same `draft.medium` so the composer dropdown stays in sync.
 
-### 3. Plan mode in chat
-- Introduce a `phase: "plan" | "build"` state (per draft).
-- While in `plan`: `chatCard` server fn is called with a flag that tells the model to **propose** updates (prompt, occasion, message, template hint) and reply conversationally, but the client does **NOT** call `regenerateImage` / `regenerateCode` / `generateMessage`. Proposed updates are stored in a `pendingPlan` object and shown as a compact "Plan" card in the chat (occasion, vibe, medium-specific hint, draft message preview).
-- A prominent **Build card** button appears under the plan card. Clicking it:
-  - Requires `draft.medium` to be set (button disabled otherwise, with helper text "Pick Art or Code above").
-  - Commits `pendingPlan` into `draft`.
-  - Runs the appropriate generator exactly once: `regenerateImage` for Art, `regenerateCode` for Code, plus `generateMessage` if the plan didn't already include one.
-  - Flips `phase` to `build`. Further chat turns can update the plan again and re-show the Build button for the next commit.
+4. **Chat seeding** — if the user types before choosing a medium, show an inline assistant nudge ("Pick Art or Code above to continue") instead of the current chip-based nudge.
 
-### 4. Editor mode mirrors this
-- "Generate all" button is disabled until a medium is picked.
-- Button label becomes **Build card** (Art) or **Build coded card** (Code) so it matches the chat action.
-- Switching medium in editor clears the current preview (image or codeSpec) and requires a rebuild.
+### Behavior
 
-### 5. `setMedium` no longer auto-generates
-- Picking Code no longer immediately calls `regenerateCode`. It only sets the chip. Generation waits for **Build**.
-- Same for Art — picking the chip never triggers image generation on its own.
+- **Plan mode** (default): submitting sends the message to `chatCard`, Pigeon replies with a plan, user clicks Build.
+- **Build mode**: submitting sends the message AND immediately runs `regenerateImage`/`regenerateCode` once Pigeon returns a plan (skips the manual Build click).
+- Medium dropdown is required for either mode; changing it mid-conversation triggers a fresh plan on the next turn.
 
-### 6. Send guards
-- `send()` continues to require a finished image (Art) or a `codeSpec` (Code) and a message — unchanged, but now naturally enforced by the plan-then-build flow.
+### Files touched
 
-## Technical notes
+- `src/routes/create.tsx` — composer footer, plan card, gating logic, editor sync.
+- `src/lib/chatCard.functions.ts` — minor system-prompt tweak so Pigeon stops asking "Art or Code?" (the composer now guarantees it).
 
-- `src/routes/create.tsx`
-  - `Draft.medium?: "art" | "code"`; initial `undefined`.
-  - Remove `kickedRef` auto-send effect.
-  - Add `pendingPlan` + `phase` state; render a `<PlanCard />` inside chat when `pendingPlan` exists.
-  - Add `commitPlan()` that validates medium, merges `pendingPlan` into `draft`, and dispatches the single correct generator.
-  - `setMedium(m)`: only sets chip; if swapping mediums, clear `image`, `isFinalImage`, `codeSpec`, and any in-flight loading flags.
-  - Preview pane: three states — no medium picked, medium picked but no output yet ("Hit Build to generate"), and output present.
-- `src/lib/chatCard.functions.ts`
-  - Accept a `phase: "plan" | "build"` (or `dryRun: true`) input. In plan phase, system prompt instructs the model to *propose* fields, never assume medium if not set, and to explicitly ask the user to pick Art or Code when `draft.medium` is undefined.
-  - Return shape unchanged (`reply`, `updates`), but the client uses `updates` as `pendingPlan` rather than applying immediately.
-- No DB/schema changes. No changes to `generate-image.ts`, `codedCards.functions.ts`, `cards.functions.ts` server logic — only their call sites move behind the Build button.
-
-## Out of scope
-
-- No changes to templates, image prompt phrasing, or share/view route.
-- No new dependencies.
+No schema, no server-function signature changes.
