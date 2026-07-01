@@ -1,67 +1,55 @@
 
 ## Goal
-Give senders a choice between **Art** (current AI illustration) and **Code** (a live animated card that runs in the browser). Chat + editor both expose the toggle, and the recipient sees whichever medium was chosen playing live on the share page.
 
-## Data
-Add two columns to `public.cards`:
-- `medium text not null default 'art'` — `'art' | 'code'`.
-- `code_spec jsonb` — the parameters used to render a coded card (template + colors + phrase + tempo, or a raw AI snippet). `image_url` stays nullable for coded cards.
+Nothing renders or generates on `/create` until the user (1) picks a medium chip — **Art** or **Code** — and (2) confirms a plan for their prompt. Mirrors Lovable's plan-then-build flow: chat proposes, user hits **Build** to commit.
 
-Migration also relaxes existing `image_url` to nullable. RLS/GRANTs unchanged.
+## Behavior changes
 
-## Coded card system (`src/lib/codedCards/`)
-Hybrid = 6 hand-built templates + one AI "surprise me" path.
+### 1. Medium starts unselected
+- `draft.medium` becomes `"art" | "code" | undefined`, defaulting to `undefined`.
+- Preview pane shows an empty "Pick Art or Code to begin" state instead of the art placeholder.
+- Art/Code chips act as a required first choice; once chosen, chip stays sticky but can be swapped (swapping clears any pending plan + preview).
 
-Templates (each a small React component taking `{ phrase, palette, tempo, seed }`):
-1. `Confetti` — falling paper, phrase center.
-2. `Fireworks` — canvas bursts on a night sky.
-3. `KineticSerif` — Instrument Serif phrase animates in word-by-word with soft gradient wash.
-4. `FloatingHearts` — SVG hearts drifting up.
-5. `Starfield` — parallax stars, phrase fading in.
-6. `RibbonsBloom` — animated SVG ribbons + florals wrapping the phrase.
+### 2. No auto-kick from URL prompt
+- Remove the `useEffect` that auto-calls `handleSend(initialPrompt)`.
+- If `?prompt=` is present, seed it into the chat input (and the editor prompt field) but do NOT send. The assistant's seed message asks the user to pick Art or Code first.
 
-Each template is pure, self-contained, uses `requestAnimationFrame` or CSS keyframes, and accepts a `seed` for reproducibility. Exported via a `TEMPLATES` registry with metadata (`id`, `name`, `defaultTempo`, `suggestedPalettes`, `bestFor: occasion[]`).
+### 3. Plan mode in chat
+- Introduce a `phase: "plan" | "build"` state (per draft).
+- While in `plan`: `chatCard` server fn is called with a flag that tells the model to **propose** updates (prompt, occasion, message, template hint) and reply conversationally, but the client does **NOT** call `regenerateImage` / `regenerateCode` / `generateMessage`. Proposed updates are stored in a `pendingPlan` object and shown as a compact "Plan" card in the chat (occasion, vibe, medium-specific hint, draft message preview).
+- A prominent **Build card** button appears under the plan card. Clicking it:
+  - Requires `draft.medium` to be set (button disabled otherwise, with helper text "Pick Art or Code above").
+  - Commits `pendingPlan` into `draft`.
+  - Runs the appropriate generator exactly once: `regenerateImage` for Art, `regenerateCode` for Code, plus `generateMessage` if the plan didn't already include one.
+  - Flips `phase` to `build`. Further chat turns can update the plan again and re-show the Build button for the next commit.
 
-A `CodedCard` renderer component takes a `code_spec` and mounts the right template, or an `AISnippet` when `template === 'ai'`.
+### 4. Editor mode mirrors this
+- "Generate all" button is disabled until a medium is picked.
+- Button label becomes **Build card** (Art) or **Build coded card** (Code) so it matches the chat action.
+- Switching medium in editor clears the current preview (image or codeSpec) and requires a rebuild.
 
-## AI-generated snippet path
-New server fn `generateCodedCard` in `src/lib/codedCards.functions.ts`:
-- Input: `{ prompt, occasion, phrase, mode: 'template' | 'ai' }`.
-- `mode: 'template'`: Gemini (`google/gemini-3-flash-preview`) picks a template id + palette (3-5 hex) + tempo from the registry, using AI SDK `Output.object` with a tight schema (enum of template ids, hex regex removed to stay within Gemini's structured-output limits — validated in code instead).
-- `mode: 'ai'`: Gemini returns a **self-contained JSX string** that renders a React component named `Card` using only React + inline styles + SVG/canvas + `requestAnimationFrame`. No imports, no network, no `eval`, no `dangerouslySetInnerHTML`. Prompt makes the constraints explicit.
+### 5. `setMedium` no longer auto-generates
+- Picking Code no longer immediately calls `regenerateCode`. It only sets the chip. Generation waits for **Build**.
+- Same for Art — picking the chip never triggers image generation on its own.
 
-Output shape stored in `code_spec`:
-```
-{ template: 'confetti' | ... | 'ai', palette: string[], phrase: string, tempo: number, seed: number, source?: string }
-```
-
-## Sandboxed AI snippet execution
-`<AISnippet source={...} palette phrase tempo seed />`:
-- Renders inside an `<iframe sandbox="allow-scripts">` with `srcDoc` containing a minimal HTML shell that loads React from a pinned CDN and mounts a `Card` compiled from the snippet via Babel standalone (also CDN). No same-origin, no parent access.
-- Height fixed to the preview square; postMessage only used to signal render errors so the parent can fall back to a template.
-
-This keeps arbitrary AI code off the app origin (no cookies, no `window.parent`, no fetch to our backend).
-
-## Chat + editor UX (`src/routes/create.tsx`)
-- Add `medium: 'art' | 'code'` to `Draft`, default `'art'`.
-- Preview area swaps between `<img>` (art) and `<CodedCard />` (code). Message + recipient row unchanged.
-- New segmented control above the preview: **Art · Code**. Flipping to Code triggers `generateCodedCard({ mode: 'template', ... })` if no spec yet.
-- In Code mode, small chips: template picker (6 + Surprise me), palette shuffle, tempo slider. "Surprise me" calls `generateCodedCard({ mode: 'ai' })`.
-- Chat: extend `chatCard` schema with `medium` and `codeSpec` in `updates`. System prompt teaches Pigeon to switch medium on intent ("make it playful/animated/coded/interactive" → code; "painted/illustrated" → art) and to describe changes conversationally. When Pigeon sets `medium: 'code'` and no spec, the client calls `generateCodedCard` with the chosen template hint from Pigeon.
-- Occasion phrase reuse: the same phrase map already built for art (`Thank You`, `Happy Birthday`, …) becomes `phrase` for coded cards. Users can override in the editor.
-
-## Save + share
-- `saveCard` accepts `medium` + `codeSpec`; `imageDataUrl` optional when medium is `code`.
-- `card.$id.tsx` renders `<CodedCard />` when `medium === 'code'`, else the existing image. Share page auto-plays.
-- Email delivery unchanged (still returns share link; live animation lives at the URL).
-
-## Out of scope
-- Server-side video/gif capture of coded cards.
-- Persisting AI-authored snippets across schema changes (kept per-card, no library).
-- Sound/audio.
+### 6. Send guards
+- `send()` continues to require a finished image (Art) or a `codeSpec` (Code) and a message — unchanged, but now naturally enforced by the plan-then-build flow.
 
 ## Technical notes
-- Templates live in `src/lib/codedCards/templates/*.tsx` — pure client components, no server imports.
-- `generateCodedCard` uses AI SDK + existing `createLovableAiGatewayProvider`; template-mode uses `Output.object` with a small enum, AI-mode returns plain text.
-- iframe shell uses pinned versions of `react@19`, `react-dom@19`, and `@babel/standalone` from a CDN; snippet size capped at 8 KB and stripped of `<script>`, `import`, `require`, `fetch`, `XMLHttpRequest`, `window.parent` before execution as defense in depth.
-- No new dependencies in the main app bundle (Babel/React only load inside the sandbox iframe).
+
+- `src/routes/create.tsx`
+  - `Draft.medium?: "art" | "code"`; initial `undefined`.
+  - Remove `kickedRef` auto-send effect.
+  - Add `pendingPlan` + `phase` state; render a `<PlanCard />` inside chat when `pendingPlan` exists.
+  - Add `commitPlan()` that validates medium, merges `pendingPlan` into `draft`, and dispatches the single correct generator.
+  - `setMedium(m)`: only sets chip; if swapping mediums, clear `image`, `isFinalImage`, `codeSpec`, and any in-flight loading flags.
+  - Preview pane: three states — no medium picked, medium picked but no output yet ("Hit Build to generate"), and output present.
+- `src/lib/chatCard.functions.ts`
+  - Accept a `phase: "plan" | "build"` (or `dryRun: true`) input. In plan phase, system prompt instructs the model to *propose* fields, never assume medium if not set, and to explicitly ask the user to pick Art or Code when `draft.medium` is undefined.
+  - Return shape unchanged (`reply`, `updates`), but the client uses `updates` as `pendingPlan` rather than applying immediately.
+- No DB/schema changes. No changes to `generate-image.ts`, `codedCards.functions.ts`, `cards.functions.ts` server logic — only their call sites move behind the Build button.
+
+## Out of scope
+
+- No changes to templates, image prompt phrasing, or share/view route.
+- No new dependencies.
