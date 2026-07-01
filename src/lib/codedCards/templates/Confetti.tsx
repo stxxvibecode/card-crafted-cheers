@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Confetti({ phrase, palette, tempo, seed }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function Confetti({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ...accents] = palette;
   const pieces = useMemo(() => {
     const r = rng(seed);
