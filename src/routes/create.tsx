@@ -200,10 +200,11 @@ function Create() {
       const hasProposals =
         !!u.prompt || !!u.occasion || !!u.message ||
         !!u.recipientName || !!u.senderName || !!u.medium ||
-        !!u.codeTemplate || u.regenerateImage;
+        !!u.codeTemplate || !!u.codeMotion || (u.codePalette && u.codePalette.length > 0) ||
+        u.regenerateImage;
 
       const planId = crypto.randomUUID();
-      const planForBuild: PlanUpdates = { ...u, id: planId, built: false };
+      const planForBuild: PlanUpdates = { ...u, id: planId, built: false, instruction: t };
       setMessages((prev) => [
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
