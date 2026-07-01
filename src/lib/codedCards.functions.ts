@@ -139,31 +139,22 @@ Rules:
 - Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
 - Apply the sender's requested change; keep the rest of the visual coherent.`;
 
-async function callChat(key: string, model: string, system: string, user: string, opts?: { schema?: unknown; schemaName?: string }): Promise<string> {
-  const body: Record<string, unknown> = {
+async function callChat(
+  model: string | undefined,
+  system: string,
+  user: string,
+  opts?: { json?: boolean },
+): Promise<string> {
+  return lavaChat(
     model,
-    messages: [{ role: "system", content: system }, { role: "user", content: user }],
-  };
-  if (opts?.schema) {
-    body.response_format = {
-      type: "json_schema",
-      json_schema: { name: opts.schemaName ?? "out", strict: true, schema: opts.schema },
-    };
-  }
-  const res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("Rate limit — try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted.");
-    const t = await res.text().catch(() => "");
-    throw new Error(`AI error: ${res.status} ${t}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content?.trim() ?? "";
+    [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    { json: opts?.json },
+  );
 }
+
 
 function stripFences(s: string): string {
   return s.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
