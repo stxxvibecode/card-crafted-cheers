@@ -260,14 +260,15 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         const nextTemplate = (parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
           ? parsed.template as Exclude<TemplateId, "ai">
           : currentTemplate;
-        return { template: nextTemplate, palette, phrase: finalPhrase, tempo, seed };
+        return { template: nextTemplate, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
       }
 
       // Rewrite path — generate fresh AI source.
       const user = [
         `Card concept: ${data.prompt ?? "a heartfelt greeting"}`,
         data.occasion ? `Occasion: ${data.occasion}` : null,
-        `Phrase to feature (must be legible): "${finalPhrase}"`,
+        `Phrase to feature (headline, large): "${finalPhrase}"`,
+        finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
         `Palette (background first): ${JSON.stringify(palette)}`,
         `Tempo: ${tempo}`,
         data.motionHint ? `Motion feel: ${data.motionHint}` : null,
@@ -278,6 +279,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         template: "ai",
         palette,
         phrase: finalPhrase,
+        message: finalMessage || undefined,
         tempo,
         seed,
         source: stripFences(sourceRaw),
