@@ -105,6 +105,7 @@ function Create() {
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
   const [actionMode, setActionMode] = useState<"plan" | "build">("plan");
+  const [previewTab, setPreviewTab] = useState<"preview" | "code">("preview");
   const [messages, setMessages] = useState<ChatMsg[]>(() => [
     {
       id: "seed",
