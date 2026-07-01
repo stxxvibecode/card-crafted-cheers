@@ -165,6 +165,8 @@ ${JSON.stringify(data.draft, null, 2)}`;
         senderName: string | null;
         medium: "art" | "code" | null;
         codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+        codeMotion: string | null;
+        codePalette: string[] | null;
         regenerateImage: boolean;
       };
     };
