@@ -1,30 +1,23 @@
-## Move medium selection into the composer
+## Goal
 
-Right now Art vs. Code lives on chips inside the plan card — users only see them after Pigeon replies. Move the pick up-front to a dropdown that sits next to the Build/Plan control in the `PromptInput` footer, so the medium is chosen before the first message is sent (mirroring Lovable's Chat/Build dropdown pattern).
+Landing composer stays a single prompt box (your call). The Art/Code + Plan/Build controls live only on `/create`, so make sure they're impossible to miss the moment the user lands there from the homepage.
 
-### UI changes (`src/routes/create.tsx`)
+## Changes
 
-1. **Composer footer** — replace the lone submit button with a segmented control:
-   - A **mode dropdown** ("Plan" / "Build") — the primary action label on the send button.
-   - A **medium dropdown** ("Art" / "Code") shown to the left of the mode/send button, defaulting to unset with a placeholder "Choose medium".
-   - Send button is disabled until a medium is chosen; tooltip explains why.
-   - Selected medium persists in `draft.medium` from the first submission onward.
+### 1. `src/routes/index.tsx` — leave the composer as-is
+No new controls. Only tweak: change the submit button label from "Send with Pigeon" to **"Continue →"** and the helper caption under the box to *"Pick Art or Code on the next step."* This sets expectations so the user isn't hunting for a picker here.
 
-2. **Plan card** — remove the Art/Code chip row. The card now just summarizes what Pigeon will build (using the already-chosen medium) and shows a single **Build** button (or auto-builds if the user picked "Build" mode in the composer).
+### 2. `src/routes/create.tsx` — highlight the footer picker
+The controls exist but blend into the composer. Make them the first thing the eye lands on when arriving with a prefilled prompt:
 
-3. **Editor mode** — keep the Art/Code toggle in the editor pane (it's the manual surface), but read/write the same `draft.medium` so the composer dropdown stays in sync.
+- **Pulse/attention state**: when `draft.medium` is `undefined` and `prompt` is prefilled from the landing search param, wrap the Art/Code segmented control in a soft ring (`ring-2 ring-primary/40`) and animate a one-shot fade-in.
+- **Inline hint above composer**: small line *"Choose Art or Code, then hit Build"* — shown only until a medium is picked.
+- **Disabled Send tooltip**: when Send is disabled because no medium is picked, add a `title`/tooltip *"Pick Art or Code first"* so the reason is discoverable.
+- **Auto-focus the medium picker** (not the textarea) on mount when arriving with a prefilled prompt, so keyboard/Tab users see it first.
 
-4. **Chat seeding** — if the user types before choosing a medium, show an inline assistant nudge ("Pick Art or Code above to continue") instead of the current chip-based nudge.
+### 3. No backend, schema, or generation-logic changes
+Purely presentational. `chatCard.functions.ts`, `codedCards.functions.ts`, and the API routes are untouched.
 
-### Behavior
-
-- **Plan mode** (default): submitting sends the message to `chatCard`, Pigeon replies with a plan, user clicks Build.
-- **Build mode**: submitting sends the message AND immediately runs `regenerateImage`/`regenerateCode` once Pigeon returns a plan (skips the manual Build click).
-- Medium dropdown is required for either mode; changing it mid-conversation triggers a fresh plan on the next turn.
-
-### Files touched
-
-- `src/routes/create.tsx` — composer footer, plan card, gating logic, editor sync.
-- `src/lib/chatCard.functions.ts` — minor system-prompt tweak so Pigeon stops asking "Art or Code?" (the composer now guarantees it).
-
-No schema, no server-function signature changes.
+## Out of scope
+- Adding the picker to the landing page (explicitly declined).
+- Changing the Plan/Build dropdown behavior.

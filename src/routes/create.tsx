@@ -610,15 +610,25 @@ function ChatPanel({
 }) {
   const [text, setText] = useState(initialText);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const mediumPickerRef = useRef<HTMLDivElement | null>(null);
+  const hadPrefill = useRef(!!initialText.trim());
 
   useEffect(() => {
     textareaRef.current = document.querySelector<HTMLTextAreaElement>('textarea[data-slot="prompt-input-textarea"]') ?? null;
-    textareaRef.current?.focus();
+    if (hadPrefill.current && !medium) {
+      // Draw the eye to the medium picker first when arriving with a prefilled prompt.
+      mediumPickerRef.current?.focus();
+    } else {
+      textareaRef.current?.focus();
+    }
   }, []);
 
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
+
+  const needsMedium = !medium;
+  const attention = needsMedium && hadPrefill.current;
 
   const canSubmit = !!medium && !!text.trim() && !busy;
 
@@ -654,6 +664,11 @@ function ChatPanel({
       </Conversation>
 
       <div className="border-t border-border p-3">
+        {needsMedium && (
+          <p className="mb-2 text-center text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Choose <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span>, then hit Build
+          </p>
+        )}
         <PromptInput
           onSubmit={(msg) => {
             const t = msg.text.trim();
@@ -672,7 +687,11 @@ function ChatPanel({
 
           <PromptInputFooter className="justify-between gap-2">
             <div className="flex items-center gap-1.5">
-              <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+              <div
+                ref={mediumPickerRef}
+                tabIndex={-1}
+                className={`inline-flex rounded-full border bg-background p-0.5 text-xs outline-none transition ${attention ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
+              >
                 <button
                   type="button"
                   onClick={() => setMedium("art")}
@@ -701,12 +720,14 @@ function ChatPanel({
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}
               disabled={!canSubmit}
+              title={needsMedium ? "Pick Art or Code first" : undefined}
             >
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
           </PromptInputFooter>
         </PromptInput>
       </div>
+
     </div>
   );
 }
