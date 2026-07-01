@@ -25,7 +25,7 @@ export const Route = createFileRoute("/card/$id")({
   },
   head: ({ loaderData }) => ({
     meta: loaderData ? [
-      { title: `A card for ${loaderData.card.recipient_name} — Sendcard` },
+      { title: `A card for ${loaderData.card.recipient_name} — Pigeon` },
       { name: "description", content: loaderData.card.message.slice(0, 160) },
       { property: "og:title", content: `A card for ${loaderData.card.recipient_name}` },
       { property: "og:description", content: loaderData.card.message.slice(0, 160) },

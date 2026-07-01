@@ -79,10 +79,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Sendcard — AI e-cards that actually feel personal" },
-      { name: "description", content: "Describe the card you want. Sendcard generates a beautiful, one-of-a-kind image and heartfelt message, and emails it to whoever needs it — in seconds." },
-      { property: "og:title", content: "Sendcard — AI e-cards that actually feel personal" },
-      { property: "og:description", content: "Describe the card you want. Sendcard generates a beautiful, one-of-a-kind image and heartfelt message, and emails it to whoever needs it." },
+      { title: "Pigeon — hand-carried e-cards, quietly beautiful" },
+      { name: "description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
+      { property: "og:title", content: "Pigeon — hand-carried e-cards, quietly beautiful" },
+      { property: "og:description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" className="dark">
+    <html lang="en">
       <head>
         <HeadContent />
       </head>
@@ -133,7 +133,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
-      <Toaster theme="dark" position="top-center" richColors />
+      <Toaster theme="light" position="top-center" richColors />
     </QueryClientProvider>
   );
 }

@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Sparkles } from "lucide-react";
+import { Bird } from "lucide-react";
 
 export function SiteNav() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
@@ -21,11 +21,11 @@ export function SiteNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
       <nav className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link to="/" className="flex items-center gap-2 font-semibold">
-          <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-blush to-amber text-background">
-            <Sparkles className="h-4 w-4" />
+        <Link to="/" className="flex items-center gap-2 text-[15px] tracking-tight">
+          <span className="grid h-8 w-8 place-items-center rounded-full border border-border bg-card text-foreground">
+            <Bird className="h-4 w-4" strokeWidth={1.5} />
           </span>
-          <span>Sendcard</span>
+          <span className="font-display text-xl leading-none">Pigeon</span>
         </Link>
         <div className="flex items-center gap-1 text-sm">
           <Link to="/create" className="rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground">
