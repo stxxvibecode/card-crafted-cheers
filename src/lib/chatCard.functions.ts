@@ -62,6 +62,17 @@ const OUT_SCHEMA = {
           description:
             "Only when medium is 'code'. Suggest a template that fits: confetti/fireworks (celebration), kinetic (quiet elegance), hearts (love), starfield (contemplative), ribbons (whimsical), or 'ai' when the user asks to surprise them.",
         },
+        codeMotion: {
+          type: ["string", "null"],
+          description:
+            "Only for code medium. 2-6 word phrase describing motion feel, e.g. 'slow drifting particles', 'rising confetti', 'kinetic serif fade-in'. null when unchanged.",
+        },
+        codePalette: {
+          type: ["array", "null"],
+          items: { type: "string" },
+          description:
+            "Only for code medium. 3-5 hex color strings (background first). null when unchanged.",
+        },
         regenerateImage: {
           type: "boolean",
           description:
@@ -76,6 +87,8 @@ const OUT_SCHEMA = {
         "senderName",
         "medium",
         "codeTemplate",
+        "codeMotion",
+        "codePalette",
         "regenerateImage",
       ],
     },
