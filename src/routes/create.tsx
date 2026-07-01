@@ -468,24 +468,45 @@ function Create() {
           {/* Right: Preview + Send */}
           <div className="flex min-h-[600px] flex-col gap-4">
             {draft.medium === "code" && draft.codeSpec && (
-              <div className="flex items-center justify-end gap-2">
-                <button
-                  onClick={shufflePalette}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  <Shuffle className="h-3 w-3" /> Shuffle
-                </button>
-                <button
-                  onClick={() => regenerateCode({ mode: "ai" })}
-                  disabled={codeLoading}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
-                >
-                  <Sparkles className="h-3 w-3" /> Surprise me
-                </button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
+                  <button
+                    onClick={() => setPreviewTab("preview")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${previewTab === "preview" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Eye className="h-3 w-3" /> Preview
+                  </button>
+                  <button
+                    onClick={() => setPreviewTab("code")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 transition ${previewTab === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <FileCode2 className="h-3 w-3" /> Code
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={shufflePalette}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    <Shuffle className="h-3 w-3" /> Shuffle
+                  </button>
+                  <button
+                    onClick={() => regenerateCode({ mode: "ai" })}
+                    disabled={codeLoading}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
+                  >
+                    <Sparkles className="h-3 w-3" /> Surprise me
+                  </button>
+                </div>
               </div>
             )}
 
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
+              {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
+                <div className="aspect-square w-full">
+                  <CodeViewer spec={draft.codeSpec} onEdit={applyHandEditedSource} />
+                </div>
+              ) : (
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
                 {!draft.medium ? (
                   <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground">
