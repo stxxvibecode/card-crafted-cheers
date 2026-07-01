@@ -264,7 +264,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         data.motionHint ? `Motion feel: ${data.motionHint}` : null,
         `Sender's request: ${instruction}`,
       ].filter(Boolean).join("\n");
-      const sourceRaw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
+      const sourceRaw = await callChat(model, CODE_SYSTEM, user);
       return {
         template: "ai",
         palette,
