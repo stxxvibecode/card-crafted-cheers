@@ -240,7 +240,7 @@ Return JSON.
 - action='tweak': keep the template family, adjust palette (3-5 hex), tempo (0.5-2), and optionally swap template to one of: ${TEMPLATE_IDS.join(", ")}.
 - action='rewrite': the edit needs custom animation. Still return a fallback palette and tempo.
 palette[0] is background; ensure the phrase stays legible on it.`;
-      const raw = await callChat(key, PICKER_MODEL, decisionSys, decisionUser, { schema: DECISION_SCHEMA, schemaName: "edit_decision" });
+      const raw = await callChat(model, decisionSys, decisionUser, { json: true });
       let parsed: { action: "tweak" | "rewrite"; template: string | null; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, templateBase.palette);
