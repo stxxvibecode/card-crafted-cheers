@@ -22,6 +22,7 @@ import {
   Code2,
   Sparkles,
   Shuffle,
+  Hammer,
 } from "lucide-react";
 import { z } from "zod";
 import {
@@ -47,7 +48,7 @@ export const Route = createFileRoute("/create")({
 
 const OCCASIONS = ["Birthday", "Thank you", "Congrats", "Get well", "Holiday", "Anniversary", "Just because"];
 
-type ChatMsg = { id: string; role: "user" | "assistant"; content: string };
+type ChatMsg = { id: string; role: "user" | "assistant"; content: string; planId?: string };
 
 type Medium = "art" | "code";
 
@@ -58,8 +59,21 @@ type Draft = {
   recipientName: string;
   recipientEmail: string;
   senderName: string;
-  medium: Medium;
+  medium?: Medium;
   codeSpec?: CodeSpec;
+};
+
+type PlanUpdates = {
+  id: string;
+  prompt: string | null;
+  occasion: string | null;
+  message: string | null;
+  recipientName: string | null;
+  senderName: string | null;
+  medium: Medium | null;
+  codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+  regenerateImage: boolean;
+  built?: boolean;
 };
 
 function Create() {
@@ -73,7 +87,7 @@ function Create() {
     recipientName: "",
     recipientEmail: "",
     senderName: "",
-    medium: "art",
+    medium: undefined,
   });
 
   const [image, setImage] = useState<string | null>(null);
@@ -89,12 +103,11 @@ function Create() {
       id: "seed",
       role: "assistant",
       content:
-        initialPrompt
-          ? "Lovely — I'll start with that. Want the card as a painted illustration, or a live animated one?"
-          : "Hi, I'm Pigeon. Tell me who this card is for and how you'd like it to feel. Painted art, or something animated and coded?",
+        "Hi, I'm Pigeon. First, tap Art or Code on the right to pick a medium — then tell me who this card is for and how you'd like it to feel. I'll draft a plan; you hit Build when it's right.",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
+  const [pendingPlan, setPendingPlan] = useState<PlanUpdates | null>(null);
 
   const msgFn = useServerFn(generateMessage);
   const saveFn = useServerFn(saveCard);
@@ -144,29 +157,18 @@ function Create() {
     }
   }, [codeFn]);
 
-  // Auto-kick generation if arriving with a prompt in the URL
-  const kickedRef = useRef(false);
-  useEffect(() => {
-    if (kickedRef.current) return;
-    if (initialPrompt && initialPrompt.trim()) {
-      kickedRef.current = true;
-      void handleSend(initialPrompt.trim(), { seedUser: false });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function handleSend(text: string, opts: { seedUser?: boolean } = { seedUser: true }) {
+  async function handleSend(text: string) {
     const t = text.trim();
     if (!t || chatBusy) return;
     const userMsg: ChatMsg = { id: crypto.randomUUID(), role: "user", content: t };
-    const nextMessages = opts.seedUser ? [...messages, userMsg] : messages;
-    if (opts.seedUser) setMessages(nextMessages);
+    const nextMessages = [...messages, userMsg];
+    setMessages(nextMessages);
     setChatBusy(true);
     try {
       const currentDraft = draftRef.current;
       const res = await chatFn({
         data: {
-          messages: (opts.seedUser ? nextMessages : [...nextMessages, userMsg]).map((m) => ({ role: m.role, content: m.content })),
+          messages: nextMessages.map((m) => ({ role: m.role, content: m.content })),
           draft: {
             prompt: currentDraft.prompt || undefined,
             occasion: currentDraft.occasion,
@@ -179,37 +181,18 @@ function Create() {
       });
 
       const u = res.updates;
-      const newMedium = (u.medium ?? currentDraft.medium) as Medium;
-      setDraft((d) => ({
-        ...d,
-        prompt: u.prompt ?? d.prompt,
-        occasion: u.occasion ?? d.occasion,
-        message: u.message ?? d.message,
-        recipientName: u.recipientName ?? d.recipientName,
-        senderName: u.senderName ?? d.senderName,
-        medium: newMedium,
-      }));
+      const hasProposals =
+        !!u.prompt || !!u.occasion || !!u.message ||
+        !!u.recipientName || !!u.senderName || !!u.medium ||
+        !!u.codeTemplate || u.regenerateImage;
 
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "assistant", content: res.reply }]);
-
-      const newPrompt = u.prompt ?? draftRef.current.prompt;
-      const newOccasion = u.occasion ?? draftRef.current.occasion;
-
-      if (newMedium === "art" && u.regenerateImage && newPrompt?.trim()) {
-        void regenerateImage(newPrompt, newOccasion ?? undefined);
-      }
-      if (newMedium === "code") {
-        const hint = u.codeTemplate;
-        const isAi = hint === "ai";
-        const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
-        // Repaint if medium switched, template hint changed, or occasion changed
-        const shouldRepaint =
-          currentDraft.medium !== "code" ||
-          (!!templateHint && draftRef.current.codeSpec?.template !== templateHint) ||
-          !!u.occasion;
-        if (shouldRepaint || isAi) {
-          void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
-        }
+      const planId = crypto.randomUUID();
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
+      ]);
+      if (hasProposals) {
+        setPendingPlan({ ...u, id: planId, built: false });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Chat failed");
@@ -218,7 +201,61 @@ function Create() {
     }
   }
 
-  async function editorGenerateAll() {
+  const commitPlan = useCallback(async (plan: PlanUpdates) => {
+    const currentDraft = draftRef.current;
+    const targetMedium = (plan.medium ?? currentDraft.medium) as Medium | undefined;
+    if (!targetMedium) {
+      toast.error("Pick Art or Code above first.");
+      return;
+    }
+
+    const newPrompt = plan.prompt ?? currentDraft.prompt;
+    const newOccasion = plan.occasion ?? currentDraft.occasion;
+    const nextMessage = plan.message ?? currentDraft.message;
+
+    setDraft((d) => ({
+      ...d,
+      prompt: plan.prompt ?? d.prompt,
+      occasion: plan.occasion ?? d.occasion,
+      message: plan.message ?? d.message,
+      recipientName: plan.recipientName ?? d.recipientName,
+      senderName: plan.senderName ?? d.senderName,
+      medium: targetMedium,
+    }));
+    setPendingPlan((p) => (p && p.id === plan.id ? { ...p, built: true } : p));
+
+    // Draft a message if the plan didn't include one and we still don't have one
+    if (!nextMessage.trim() && newPrompt.trim()) {
+      setMsgLoading(true);
+      msgFn({
+        data: {
+          prompt: newPrompt,
+          occasion: newOccasion,
+          recipientName: currentDraft.recipientName || undefined,
+          senderName: currentDraft.senderName || undefined,
+        },
+      })
+        .then((r) => setDraft((d) => ({ ...d, message: r.message })))
+        .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
+        .finally(() => setMsgLoading(false));
+    }
+
+    if (targetMedium === "art") {
+      if (!newPrompt.trim()) {
+        toast.error("Add a description of the card before building.");
+        return;
+      }
+      void regenerateImage(newPrompt, newOccasion ?? undefined);
+    } else {
+      const hint = plan.codeTemplate;
+      const isAi = hint === "ai";
+      const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
+      void regenerateCode({ mode: isAi ? "ai" : "template", templateHint });
+    }
+  }, [msgFn, regenerateImage, regenerateCode]);
+
+  async function editorBuild() {
+    if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
     const p = draft.prompt.trim();
     if (!p) { toast.error("Describe the card you want first."); return; }
     setMsgLoading(true);
@@ -258,28 +295,30 @@ function Create() {
 
   function setMedium(m: Medium) {
     if (draft.medium === m) return;
-    setDraft((d) => ({ ...d, medium: m }));
-    if (m === "code" && !draftRef.current.codeSpec) {
-      void regenerateCode({ mode: "template" });
-    }
+    // Switching (or first pick) — clear any preview so the user rebuilds.
+    setImage(null);
+    setIsFinalImage(false);
+    setImgLoading(false);
+    setCodeLoading(false);
+    setDraft((d) => ({ ...d, medium: m, codeSpec: undefined }));
   }
 
   function shufflePalette() {
     const spec = draft.codeSpec; if (!spec) return;
     const others = TEMPLATES.flatMap((t) => t.palette);
     const shuffled = [...spec.palette].sort(() => Math.random() - 0.5);
-    // Swap two accents with random ones from the pool to keep it fresh
     shuffled[1] = others[Math.floor(Math.random() * others.length)];
     shuffled[shuffled.length - 1] = others[Math.floor(Math.random() * others.length)];
     setDraft((d) => ({ ...d, codeSpec: { ...spec, palette: shuffled, seed: Math.floor(Math.random() * 1e6) } }));
   }
 
   async function send() {
+    if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
     if (draft.medium === "art" && (!image || !isFinalImage)) {
       toast.error("Wait for the image to finish rendering."); return;
     }
     if (draft.medium === "code" && !draft.codeSpec) {
-      toast.error("Generate the coded card first."); return;
+      toast.error("Build the coded card first."); return;
     }
     if (!draft.message.trim()) { toast.error("The card has no message yet."); return; }
     if (!draft.recipientName.trim() || !draft.recipientEmail.trim()) { toast.error("Add recipient name and email."); return; }
@@ -307,6 +346,7 @@ function Create() {
   }
 
   const previewBusy = draft.medium === "art" ? imgLoading : codeLoading;
+  const hasOutput = draft.medium === "art" ? !!image : !!draft.codeSpec;
 
   return (
     <div className="min-h-screen bg-background">
@@ -341,12 +381,17 @@ function Create() {
                 messages={messages}
                 busy={chatBusy}
                 onSend={(t) => handleSend(t)}
+                pendingPlan={pendingPlan}
+                medium={draft.medium}
+                onBuild={commitPlan}
+                building={imgLoading || codeLoading || msgLoading}
+                initialText={initialPrompt ?? ""}
               />
             ) : (
               <EditorPanel
                 draft={draft}
                 setDraft={setDraft}
-                onGenerateAll={editorGenerateAll}
+                onBuild={editorBuild}
                 onRewriteMessage={rewriteMessage}
                 onRegenerateCode={regenerateCode}
                 imgLoading={imgLoading}
@@ -394,7 +439,17 @@ function Create() {
 
             <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
               <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
-                {draft.medium === "art" ? (
+                {!draft.medium ? (
+                  <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground">
+                    <div className="space-y-2">
+                      <div className="mx-auto inline-flex gap-2">
+                        <Palette className="h-5 w-5" />
+                        <Code2 className="h-5 w-5" />
+                      </div>
+                      <p>Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> above to begin.</p>
+                    </div>
+                  </div>
+                ) : draft.medium === "art" ? (
                   image ? (
                     <img
                       src={image}
@@ -405,7 +460,7 @@ function Create() {
                     <div className="grid h-full place-items-center text-sm text-muted-foreground">
                       {imgLoading ? (
                         <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
-                      ) : "Your card will appear here"}
+                      ) : "Hit Build in the chat to paint your card."}
                     </div>
                   )
                 ) : draft.codeSpec ? (
@@ -414,10 +469,10 @@ function Create() {
                   <div className="grid h-full place-items-center text-sm text-muted-foreground">
                     {codeLoading ? (
                       <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Composing…</span>
-                    ) : "Your coded card will appear here"}
+                    ) : "Hit Build in the chat to compose your coded card."}
                   </div>
                 )}
-                {previewBusy && (image || draft.codeSpec) && (
+                {previewBusy && hasOutput && (
                   <div className="absolute right-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground backdrop-blur">
                     updating…
                   </div>
@@ -460,6 +515,7 @@ function Create() {
                   onClick={send}
                   disabled={
                     sending ||
+                    !draft.medium ||
                     !draft.message ||
                     (draft.medium === "art" ? !image || !isFinalImage : !draft.codeSpec)
                   }
@@ -477,16 +533,78 @@ function Create() {
   );
 }
 
+function PlanCard({
+  plan,
+  medium,
+  onBuild,
+  building,
+}: {
+  plan: PlanUpdates;
+  medium?: Medium;
+  onBuild: (p: PlanUpdates) => void;
+  building: boolean;
+}) {
+  const proposedMedium = plan.medium ?? medium;
+  const rows: Array<[string, string]> = [];
+  if (plan.occasion) rows.push(["Occasion", plan.occasion]);
+  if (proposedMedium) rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
+  if (proposedMedium === "code" && plan.codeTemplate) rows.push(["Template", plan.codeTemplate]);
+  if (plan.prompt) rows.push(["Vibe", plan.prompt.length > 90 ? plan.prompt.slice(0, 87) + "…" : plan.prompt]);
+  if (plan.recipientName) rows.push(["For", plan.recipientName]);
+  if (plan.senderName) rows.push(["From", plan.senderName]);
+  if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
+
+  const disabled = plan.built || building || !proposedMedium;
+
+  return (
+    <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
+      <div className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+        <Hammer className="h-3 w-3" /> Plan
+      </div>
+      {rows.length > 0 ? (
+        <dl className="space-y-1">
+          {rows.map(([k, v]) => (
+            <div key={k} className="grid grid-cols-[70px_1fr] gap-2">
+              <dt className="text-muted-foreground">{k}</dt>
+              <dd className="text-foreground">{v}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : (
+        <p className="text-muted-foreground">Ready when you are.</p>
+      )}
+      <button
+        onClick={() => onBuild(plan)}
+        disabled={disabled}
+        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-40"
+      >
+        {building ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hammer className="h-3 w-3" />}
+        {plan.built ? "Built" : !proposedMedium ? "Pick Art or Code above" : "Build card"}
+      </button>
+    </div>
+  );
+}
+
 function ChatPanel({
   messages,
   busy,
   onSend,
+  pendingPlan,
+  medium,
+  onBuild,
+  building,
+  initialText,
 }: {
   messages: ChatMsg[];
   busy: boolean;
   onSend: (text: string) => void;
+  pendingPlan: PlanUpdates | null;
+  medium?: Medium;
+  onBuild: (p: PlanUpdates) => void;
+  building: boolean;
+  initialText: string;
 }) {
-  const [text, setText] = useState("");
+  const [text, setText] = useState(initialText);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
@@ -498,23 +616,27 @@ function ChatPanel({
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
 
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <Conversation className="min-h-0 flex-1">
         <ConversationContent className="space-y-1">
           {messages.map((m) => (
-            <Message key={m.id} from={m.role}>
-              {m.role === "assistant" ? (
-                <div className="max-w-[85%] text-sm leading-relaxed text-foreground">
-                  {m.content}
-                </div>
-              ) : (
-                <MessageContent className="max-w-[85%] bg-foreground text-background">
-                  {m.content}
-                </MessageContent>
+            <div key={m.id}>
+              <Message from={m.role}>
+                {m.role === "assistant" ? (
+                  <div className="max-w-[85%] text-sm leading-relaxed text-foreground">
+                    {m.content}
+                  </div>
+                ) : (
+                  <MessageContent className="max-w-[85%] bg-foreground text-background">
+                    {m.content}
+                  </MessageContent>
+                )}
+              </Message>
+              {m.planId && pendingPlan && pendingPlan.id === m.planId && (
+                <PlanCard plan={pendingPlan} medium={medium} onBuild={onBuild} building={building} />
               )}
-            </Message>
+            </div>
           ))}
           {busy && (
             <Message from="assistant">
@@ -537,7 +659,7 @@ function ChatPanel({
           <PromptInputTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder="Tell Pigeon what to change…"
+            placeholder={medium ? "Tell Pigeon what to change…" : "Pick Art or Code, then describe your card…"}
             disabled={busy}
           />
 
@@ -558,7 +680,7 @@ function ChatPanel({
 function EditorPanel({
   draft,
   setDraft,
-  onGenerateAll,
+  onBuild,
   onRewriteMessage,
   onRegenerateCode,
   imgLoading,
@@ -567,7 +689,7 @@ function EditorPanel({
 }: {
   draft: Draft;
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
-  onGenerateAll: () => void;
+  onBuild: () => void;
   onRewriteMessage: () => void;
   onRegenerateCode: (opts: { mode: "template" | "ai"; templateHint?: Exclude<TemplateId, "ai"> }) => void;
   imgLoading: boolean;
@@ -575,8 +697,14 @@ function EditorPanel({
   codeLoading: boolean;
 }) {
   const busy = imgLoading || msgLoading || codeLoading;
+  const canBuild = !!draft.medium && !!draft.prompt.trim();
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+      {!draft.medium && (
+        <div className="rounded-lg border border-dashed border-border bg-background/60 p-3 text-xs text-muted-foreground">
+          Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> on the preview to unlock Build.
+        </div>
+      )}
       <div>
         <label className="text-xs uppercase tracking-wide text-muted-foreground">Prompt</label>
         <textarea
@@ -599,12 +727,12 @@ function EditorPanel({
           ))}
         </div>
         <button
-          onClick={onGenerateAll}
-          disabled={busy}
+          onClick={onBuild}
+          disabled={busy || !canBuild}
           className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
         >
-          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-          Regenerate {draft.medium === "code" ? "coded card" : "art"} & message
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Hammer className="h-4 w-4" />}
+          Build {draft.medium === "code" ? "coded card" : draft.medium === "art" ? "card" : "card"}
         </button>
       </div>
 
