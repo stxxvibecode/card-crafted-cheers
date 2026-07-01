@@ -349,12 +349,14 @@ function ChatPanel({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
+    textareaRef.current = document.querySelector<HTMLTextAreaElement>('textarea[data-slot="prompt-input-textarea"]') ?? null;
     textareaRef.current?.focus();
   }, []);
 
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
+
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
