@@ -72,7 +72,10 @@ type PlanUpdates = {
   senderName: string | null;
   medium: Medium | null;
   codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+  codeMotion: string | null;
+  codePalette: string[] | null;
   regenerateImage: boolean;
+  instruction?: string; // last user message that produced the plan (used for edit mode)
   built?: boolean;
 };
 
