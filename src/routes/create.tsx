@@ -714,6 +714,7 @@ function ChatPanel({
 function EditorPanel({
   draft,
   setDraft,
+  setMedium,
   onBuild,
   onRewriteMessage,
   onRegenerateCode,
@@ -723,6 +724,7 @@ function EditorPanel({
 }: {
   draft: Draft;
   setDraft: React.Dispatch<React.SetStateAction<Draft>>;
+  setMedium: (m: Medium) => void;
   onBuild: () => void;
   onRewriteMessage: () => void;
   onRegenerateCode: (opts: { mode: "template" | "ai"; templateHint?: Exclude<TemplateId, "ai"> }) => void;
@@ -734,11 +736,25 @@ function EditorPanel({
   const canBuild = !!draft.medium && !!draft.prompt.trim();
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
-      {!draft.medium && (
-        <div className="rounded-lg border border-dashed border-border bg-background/60 p-3 text-xs text-muted-foreground">
-          Pick <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span> on the preview to unlock Build.
+      <div>
+        <label className="text-xs uppercase tracking-wide text-muted-foreground">Medium</label>
+        <div className="mt-2 inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+          <button
+            type="button"
+            onClick={() => setMedium("art")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Palette className="h-3 w-3" /> Art
+          </button>
+          <button
+            type="button"
+            onClick={() => setMedium("code")}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            <Code2 className="h-3 w-3" /> Code
+          </button>
         </div>
-      )}
+      </div>
       <div>
         <label className="text-xs uppercase tracking-wide text-muted-foreground">Prompt</label>
         <textarea
