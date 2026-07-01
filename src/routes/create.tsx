@@ -24,6 +24,8 @@ import {
   Sparkles,
   Shuffle,
   Hammer,
+  Eye,
+  FileCode2,
 } from "lucide-react";
 import { z } from "zod";
 import {
