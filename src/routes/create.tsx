@@ -547,6 +547,7 @@ function Create() {
                   </div>
                 )}
               </div>
+              )}
               <div className="border-t border-border p-6">
                 {draft.message ? (
                   <div className="space-y-2">
