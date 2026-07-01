@@ -88,6 +88,10 @@ type PlanUpdates = {
 function Create() {
   const { prompt: initialPrompt } = Route.useSearch();
   const navigate = useNavigate();
+  const { prefs } = useModelPrefs();
+  const prefsRef = useRef(prefs);
+  useEffect(() => { prefsRef.current = prefs; }, [prefs]);
+
 
   const [draft, setDraft] = useState<Draft>({
     prompt: initialPrompt ?? "",
