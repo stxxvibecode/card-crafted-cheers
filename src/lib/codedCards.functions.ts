@@ -332,7 +332,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
         ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));
-      return { template, palette, phrase: finalPhrase, tempo, seed };
+      return { template, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
     }
 
     // ------------------------------------------------------------------
@@ -343,7 +343,8 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
     const user = [
       data.prompt ? `Card concept: ${data.prompt}` : null,
       data.occasion ? `Occasion: ${data.occasion}` : null,
-      `Phrase to feature (must be legible): "${finalPhrase}"`,
+      `Phrase to feature (headline, large): "${finalPhrase}"`,
+      finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
       `Palette (background first): ${JSON.stringify(palette)}`,
       data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
     ].filter(Boolean).join("\n");
@@ -352,6 +353,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       template: "ai",
       palette,
       phrase: finalPhrase,
+      message: finalMessage || undefined,
       tempo: 1,
       seed,
       source: stripFences(raw),
