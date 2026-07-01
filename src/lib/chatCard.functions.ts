@@ -146,6 +146,8 @@ ${JSON.stringify(data.draft, null, 2)}`;
         message: string | null;
         recipientName: string | null;
         senderName: string | null;
+        medium: "art" | "code" | null;
+        codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
         regenerateImage: boolean;
       };
     };
