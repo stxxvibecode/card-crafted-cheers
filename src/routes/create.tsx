@@ -262,6 +262,8 @@ function Create() {
     }
   }, [msgFn, regenerateImage, regenerateCode]);
 
+  useEffect(() => { commitPlanRef.current = commitPlan; }, [commitPlan]);
+
   async function editorBuild() {
     if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
     const p = draft.prompt.trim();
