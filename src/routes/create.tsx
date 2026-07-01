@@ -331,6 +331,9 @@ function Create() {
         senderName: draft.senderName || undefined,
       }});
       setDraft((d) => ({ ...d, message: r.message }));
+      if (draft.medium === "code") {
+        void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Message generation failed");
     } finally {
@@ -348,6 +351,9 @@ function Create() {
         senderName: draft.senderName || undefined,
       }});
       setDraft((d) => ({ ...d, message: r.message }));
+      if (draft.medium === "code" && draftRef.current.codeSpec) {
+        void regenerateCode({ mode: "edit", message: r.message, instruction: "Refresh with the updated message." });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally { setMsgLoading(false); }
