@@ -50,6 +50,18 @@ const OUT_SCHEMA = {
         },
         recipientName: { type: ["string", "null"] },
         senderName: { type: ["string", "null"] },
+        medium: {
+          type: ["string", "null"],
+          enum: ["art", "code", null],
+          description:
+            "Set to 'code' if the user asks for something animated / playful / interactive / coded / kinetic; set to 'art' if they ask for a painted / illustrated / hand-drawn look; null to keep current medium.",
+        },
+        codeTemplate: {
+          type: ["string", "null"],
+          enum: ["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai", null],
+          description:
+            "Only when medium is 'code'. Suggest a template that fits: confetti/fireworks (celebration), kinetic (quiet elegance), hearts (love), starfield (contemplative), ribbons (whimsical), or 'ai' when the user asks to surprise them.",
+        },
         regenerateImage: {
           type: "boolean",
           description:
@@ -62,6 +74,8 @@ const OUT_SCHEMA = {
         "message",
         "recipientName",
         "senderName",
+        "medium",
+        "codeTemplate",
         "regenerateImage",
       ],
     },
