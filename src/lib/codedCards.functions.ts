@@ -14,6 +14,7 @@ const Input = z.object({
   prompt: z.string().max(500).optional(),
   occasion: z.string().max(64).optional(),
   phrase: z.string().max(80).optional(),
+  message: z.string().max(600).optional(),
   mode: z.enum(["template", "ai", "edit"]),
   templateHint: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons"]).optional(),
   motionHint: z.string().max(120).optional(),
@@ -32,7 +33,8 @@ const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that 
 
 The function is invoked with these parameters:
   container: HTMLElement — square element you must fill
-  phrase:    string      — the words the card must display, prominently and legibly
+  phrase:    string      — SHORT headline (2-4 words, e.g. "Happy Birthday"); render LARGE and prominent
+  message:   string      — the sender's personal note (1-4 sentences, may be empty); render SMALLER, wrapped, secondary
   palette:   string[]    — 3-5 hex colors; palette[0] is background, the rest are accents/text
   tempo:     number      — 0.5 (slow, meditative) to 2 (fast, energetic)
   seed:      number      — deterministic randomness input
@@ -41,10 +43,11 @@ STRICT RULES:
 - Output ONLY the function body. No markdown, no code fences, no explanation, no imports, no wrapping function keyword.
 - Use only browser DOM/CSS/SVG/Canvas APIs. No fetch, no XHR, no eval, no import, no require, no window.parent, no cookies/storage.
 - The container fills a square. Design must look intentional at any size (use % / vmin / relative units).
-- Render the phrase prominently. Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
+- ALWAYS render both phrase and message when message is non-empty: phrase is the visual anchor (clamp(2.25rem, 7vw, 4.5rem) serif); message is the personal note beneath it (clamp(0.95rem, 1.6vw, 1.25rem), wrapped, max-width around 36ch, slightly lower opacity). If message is empty, render only phrase.
+- Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
 - Use requestAnimationFrame for motion. Tie easing/frequency to the tempo variable.
 - Keep it under 5500 characters. Prefer elegant simplicity to feature stuffing.
-- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast the phrase.
+- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast text against the background.
 
 Below are two short reference bodies. Do not copy them — use them to calibrate quality and style.
 
@@ -74,13 +77,23 @@ function frame(){
   requestAnimationFrame(frame);
 }
 frame();
+const wrap = document.createElement('div');
+Object.assign(wrap.style, { position:'absolute', inset:0, display:'flex', flexDirection:'column', gap:'1rem',
+  alignItems:'center', justifyContent:'center', textAlign:'center', padding:'0 6%', color: cs[0]||'#fff',
+  fontFamily:'"Instrument Serif", Georgia, serif' });
 const h = document.createElement('div');
 h.textContent = phrase;
-Object.assign(h.style, { position:'absolute', inset:0, display:'grid', placeItems:'center',
-  color: cs[0]||'#fff', fontFamily:'"Instrument Serif", Georgia, serif',
-  fontSize:'clamp(2.5rem, 8vw, 5rem)', lineHeight:'1.05', textAlign:'center', padding:'0 6%',
+Object.assign(h.style, { fontSize:'clamp(2.25rem, 7vw, 4.5rem)', lineHeight:'1.05',
   letterSpacing:'-0.02em', textShadow:'0 2px 30px '+bg });
-container.appendChild(h);
+wrap.appendChild(h);
+if (message) {
+  const m = document.createElement('div');
+  m.textContent = message;
+  Object.assign(m.style, { fontSize:'clamp(0.95rem, 1.6vw, 1.25rem)', lineHeight:'1.4',
+    maxWidth:'36ch', opacity:'0.85', fontStyle:'italic' });
+  wrap.appendChild(m);
+}
+container.appendChild(wrap);
 
 --- REFERENCE 2: kinetic svg words ---
 const [bg, fg, accent] = palette;
@@ -107,13 +120,23 @@ words.forEach((w,i)=>{
     [{opacity:0, transform:'translateY(12px)'},{opacity:1, transform:'translateY(0)'}],
     { duration: 600/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)' }
   ), delay);
-});`;
+});
+if (message) {
+  const fo = document.createElementNS(svg.namespaceURI, 'foreignObject');
+  fo.setAttribute('x','40'); fo.setAttribute('y', 260); fo.setAttribute('width','320'); fo.setAttribute('height','120');
+  const p = document.createElement('div');
+  p.textContent = message;
+  Object.assign(p.style, { font: 'italic 18px "Instrument Serif", Georgia, serif', color: fg, opacity:'0.8',
+    textAlign:'center', lineHeight:'1.4' });
+  fo.appendChild(p); svg.appendChild(fo);
+}`;
 
 const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender wants a specific change.
 
 Rules:
 - Return the FULL rewritten function body only. No markdown, no explanations.
-- Preserve the same invocation contract: (container, phrase, palette, tempo, seed).
+- Preserve the same invocation contract: (container, phrase, message, palette, tempo, seed). phrase = short headline, message = longer personal note (may be empty).
+- Both phrase AND message must render when message is non-empty (phrase large, message smaller / wrapped underneath).
 - Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
 - Apply the sender's requested change; keep the rest of the visual coherent.`;
 
@@ -159,6 +182,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
     if (!key) throw new Error("Missing LOVABLE_API_KEY");
 
     const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
+    const finalMessage = data.message?.trim() ?? "";
     const seed = Math.floor(Math.random() * 1_000_000);
 
     // ------------------------------------------------------------------
@@ -171,7 +195,8 @@ export const generateCodedCard = createServerFn({ method: "POST" })
       // If we have prior source, ask the model to rewrite it end-to-end.
       if (prior?.source) {
         const user = [
-          `Current card phrase: "${finalPhrase}"`,
+          `Current card phrase (headline): "${finalPhrase}"`,
+          finalMessage ? `Current card message (personal note): """${finalMessage}"""` : `Current card message: (empty)`,
           `Current palette: ${JSON.stringify(prior.palette ?? [])}`,
           `Current tempo: ${prior.tempo ?? 1}`,
           data.paletteHint?.length ? `Sender's palette suggestion: ${JSON.stringify(data.paletteHint)}` : null,
@@ -188,6 +213,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
           template: "ai",
           palette,
           phrase: finalPhrase,
+          message: finalMessage || undefined,
           tempo: Math.max(0.4, Math.min(2, prior.tempo ?? 1)),
           seed,
           source,
@@ -234,14 +260,15 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         const nextTemplate = (parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
           ? parsed.template as Exclude<TemplateId, "ai">
           : currentTemplate;
-        return { template: nextTemplate, palette, phrase: finalPhrase, tempo, seed };
+        return { template: nextTemplate, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
       }
 
       // Rewrite path — generate fresh AI source.
       const user = [
         `Card concept: ${data.prompt ?? "a heartfelt greeting"}`,
         data.occasion ? `Occasion: ${data.occasion}` : null,
-        `Phrase to feature (must be legible): "${finalPhrase}"`,
+        `Phrase to feature (headline, large): "${finalPhrase}"`,
+        finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
         `Palette (background first): ${JSON.stringify(palette)}`,
         `Tempo: ${tempo}`,
         data.motionHint ? `Motion feel: ${data.motionHint}` : null,
@@ -252,6 +279,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         template: "ai",
         palette,
         phrase: finalPhrase,
+        message: finalMessage || undefined,
         tempo,
         seed,
         source: stripFences(sourceRaw),
@@ -304,7 +332,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
         ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));
-      return { template, palette, phrase: finalPhrase, tempo, seed };
+      return { template, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
     }
 
     // ------------------------------------------------------------------
@@ -315,7 +343,8 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
     const user = [
       data.prompt ? `Card concept: ${data.prompt}` : null,
       data.occasion ? `Occasion: ${data.occasion}` : null,
-      `Phrase to feature (must be legible): "${finalPhrase}"`,
+      `Phrase to feature (headline, large): "${finalPhrase}"`,
+      finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
       `Palette (background first): ${JSON.stringify(palette)}`,
       data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
     ].filter(Boolean).join("\n");
@@ -324,6 +353,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       template: "ai",
       palette,
       phrase: finalPhrase,
+      message: finalMessage || undefined,
       tempo: 1,
       seed,
       source: stripFences(raw),

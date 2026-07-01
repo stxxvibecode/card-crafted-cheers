@@ -147,6 +147,7 @@ function Create() {
     paletteHint?: string[];
     instruction?: string;
     phrase?: string;
+    message?: string;
   }) => {
     const d = draftRef.current;
     setCodeLoading(true);
@@ -155,7 +156,8 @@ function Create() {
         data: {
           prompt: d.prompt || undefined,
           occasion: d.occasion,
-          phrase: opts.phrase ?? d.codeSpec?.phrase ?? phraseFor(d.occasion),
+          phrase: opts.phrase ?? phraseFor(d.occasion),
+          message: (opts.message ?? d.message) || undefined,
           mode: opts.mode,
           templateHint: opts.templateHint,
           motionHint: opts.motionHint,
@@ -263,7 +265,13 @@ function Create() {
           senderName: currentDraft.senderName || undefined,
         },
       })
-        .then((r) => setDraft((d) => ({ ...d, message: r.message })))
+        .then((r) => {
+          setDraft((d) => ({ ...d, message: r.message }));
+          // Re-render the coded card with the fresh message baked in.
+          if (targetMedium === "code") {
+            void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
+          }
+        })
         .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
         .finally(() => setMsgLoading(false));
     }
@@ -280,6 +288,7 @@ function Create() {
       const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
       const motionHint = plan.codeMotion ?? undefined;
       const paletteHint = plan.codePalette ?? undefined;
+      const messageForCard = nextMessage || undefined;
 
       // If we already have a code spec, iterate on it via edit mode.
       if (currentDraft.codeSpec) {
@@ -289,6 +298,7 @@ function Create() {
           motionHint,
           paletteHint,
           instruction: plan.instruction,
+          message: messageForCard,
         });
       } else {
         void regenerateCode({
@@ -296,6 +306,7 @@ function Create() {
           templateHint,
           motionHint,
           paletteHint,
+          message: messageForCard,
         });
       }
     }
@@ -320,6 +331,9 @@ function Create() {
         senderName: draft.senderName || undefined,
       }});
       setDraft((d) => ({ ...d, message: r.message }));
+      if (draft.medium === "code") {
+        void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Message generation failed");
     } finally {
@@ -337,6 +351,9 @@ function Create() {
         senderName: draft.senderName || undefined,
       }});
       setDraft((d) => ({ ...d, message: r.message }));
+      if (draft.medium === "code" && draftRef.current.codeSpec) {
+        void regenerateCode({ mode: "edit", message: r.message, instruction: "Refresh with the updated message." });
+      }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
     } finally { setMsgLoading(false); }

@@ -1,4 +1,4 @@
-export function KineticSerif({ phrase, palette, tempo }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function KineticSerif({ phrase, message, palette, tempo }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ink, a1, a2] = palette;
   const words = phrase.split(" ");
   const dur = 0.9 / tempo;
@@ -18,30 +18,47 @@ export function KineticSerif({ phrase, palette, tempo }: { phrase: string; palet
         }}
       />
       <div className="absolute inset-0 grid place-items-center px-8 text-center">
-        <h1
-          style={{
-            color: ink,
-            fontFamily: '"Instrument Serif", serif',
-            fontSize: "clamp(2.75rem, 9vw, 5.5rem)",
-            lineHeight: 1.02,
-            letterSpacing: "-0.02em",
-            fontStyle: "italic",
-          }}
-        >
-          {words.map((w, i) => (
-            <span
-              key={i}
+        <div className="flex max-w-[90%] flex-col items-center gap-5">
+          <h1
+            style={{
+              color: ink,
+              fontFamily: '"Instrument Serif", serif',
+              fontSize: "clamp(2.5rem, 8vw, 5rem)",
+              lineHeight: 1.02,
+              letterSpacing: "-0.02em",
+              fontStyle: "italic",
+            }}
+          >
+            {words.map((w, i) => (
+              <span
+                key={i}
+                style={{
+                  display: "inline-block",
+                  marginRight: "0.25em",
+                  opacity: 0,
+                  animation: `pgn-rise ${dur}s cubic-bezier(0.2,0.7,0.2,1) ${0.15 * i}s forwards`,
+                }}
+              >
+                {w}
+              </span>
+            ))}
+          </h1>
+          {message ? (
+            <p
               style={{
-                display: "inline-block",
-                marginRight: "0.25em",
-                opacity: 0,
-                animation: `pgn-rise ${dur}s cubic-bezier(0.2,0.7,0.2,1) ${0.15 * i}s forwards`,
+                color: ink,
+                opacity: 0.75,
+                fontFamily: '"Instrument Serif", serif',
+                fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)",
+                lineHeight: 1.4,
+                maxWidth: "36ch",
+                animation: `pgn-rise ${dur}s cubic-bezier(0.2,0.7,0.2,1) ${0.15 * words.length + 0.1}s both`,
               }}
             >
-              {w}
-            </span>
-          ))}
-        </h1>
+              {message}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

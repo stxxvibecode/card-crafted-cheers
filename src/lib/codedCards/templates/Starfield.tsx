@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Starfield({ phrase, palette, tempo, seed }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function Starfield({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ...accents] = palette;
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
@@ -40,9 +40,16 @@ export function Starfield({ phrase, palette, tempo, seed }: { phrase: string; pa
       <canvas ref={ref} className="absolute inset-0 h-full w-full" />
       <style>{`@keyframes pgn-fadein { from { opacity: 0; transform: translateY(0.4em); } to { opacity: 1; transform: translateY(0); } }`}</style>
       <div className="absolute inset-0 grid place-items-center px-6 text-center">
-        <h1 style={{ color: palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.5rem, 8vw, 5rem)", lineHeight: 1.05, letterSpacing: "-0.02em", animation: "pgn-fadein 1.6s ease-out both" }}>
-          {phrase}
-        </h1>
+        <div className="flex max-w-[90%] flex-col items-center gap-4">
+          <h1 style={{ color: palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.05, letterSpacing: "-0.02em", animation: "pgn-fadein 1.6s ease-out both" }}>
+            {phrase}
+          </h1>
+          {message ? (
+            <p style={{ color: palette[1] ?? "#fff", opacity: 0.75, fontFamily: '"Instrument Serif", serif', fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)", lineHeight: 1.4, maxWidth: "36ch", animation: "pgn-fadein 2s ease-out 0.5s both" }}>
+              {message}
+            </p>
+          ) : null}
+        </div>
       </div>
     </div>
   );

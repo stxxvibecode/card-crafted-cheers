@@ -8,7 +8,13 @@ import { AISnippet } from "./AISnippet";
 import type { CodeSpec } from "./registry";
 
 export function CodedCard({ spec }: { spec: CodeSpec }) {
-  const props = { phrase: spec.phrase, palette: spec.palette, tempo: spec.tempo, seed: spec.seed };
+  const props = {
+    phrase: spec.phrase,
+    message: spec.message ?? "",
+    palette: spec.palette,
+    tempo: spec.tempo,
+    seed: spec.seed,
+  };
   switch (spec.template) {
     case "confetti":  return <Confetti {...props} />;
     case "fireworks": return <Fireworks {...props} />;
