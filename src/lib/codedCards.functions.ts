@@ -120,13 +120,23 @@ words.forEach((w,i)=>{
     [{opacity:0, transform:'translateY(12px)'},{opacity:1, transform:'translateY(0)'}],
     { duration: 600/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)' }
   ), delay);
-});`;
+});
+if (message) {
+  const fo = document.createElementNS(svg.namespaceURI, 'foreignObject');
+  fo.setAttribute('x','40'); fo.setAttribute('y', 260); fo.setAttribute('width','320'); fo.setAttribute('height','120');
+  const p = document.createElement('div');
+  p.textContent = message;
+  Object.assign(p.style, { font: 'italic 18px "Instrument Serif", Georgia, serif', color: fg, opacity:'0.8',
+    textAlign:'center', lineHeight:'1.4' });
+  fo.appendChild(p); svg.appendChild(fo);
+}`;
 
 const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender wants a specific change.
 
 Rules:
 - Return the FULL rewritten function body only. No markdown, no explanations.
-- Preserve the same invocation contract: (container, phrase, palette, tempo, seed).
+- Preserve the same invocation contract: (container, phrase, message, palette, tempo, seed). phrase = short headline, message = longer personal note (may be empty).
+- Both phrase AND message must render when message is non-empty (phrase large, message smaller / wrapped underneath).
 - Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
 - Apply the sender's requested change; keep the rest of the visual coherent.`;
 
