@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CardIdRouteImport } from './routes/card.$id'
+import { Route as ApiModelsRouteImport } from './routes/api/models'
 import { Route as ApiGenerateImageRouteImport } from './routes/api/generate-image'
 import { Route as AuthenticatedCardsRouteImport } from './routes/_authenticated/cards'
 
@@ -41,6 +42,11 @@ const CardIdRoute = CardIdRouteImport.update({
   path: '/card/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiModelsRoute = ApiModelsRouteImport.update({
+  id: '/api/models',
+  path: '/api/models',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiGenerateImageRoute = ApiGenerateImageRouteImport.update({
   id: '/api/generate-image',
   path: '/api/generate-image',
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/create': typeof CreateRoute
   '/cards': typeof AuthenticatedCardsRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/models': typeof ApiModelsRoute
   '/card/$id': typeof CardIdRoute
 }
 export interface FileRoutesByTo {
@@ -66,6 +73,7 @@ export interface FileRoutesByTo {
   '/create': typeof CreateRoute
   '/cards': typeof AuthenticatedCardsRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/models': typeof ApiModelsRoute
   '/card/$id': typeof CardIdRoute
 }
 export interface FileRoutesById {
@@ -76,6 +84,7 @@ export interface FileRoutesById {
   '/create': typeof CreateRoute
   '/_authenticated/cards': typeof AuthenticatedCardsRoute
   '/api/generate-image': typeof ApiGenerateImageRoute
+  '/api/models': typeof ApiModelsRoute
   '/card/$id': typeof CardIdRoute
 }
 export interface FileRouteTypes {
@@ -86,9 +95,17 @@ export interface FileRouteTypes {
     | '/create'
     | '/cards'
     | '/api/generate-image'
+    | '/api/models'
     | '/card/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/create' | '/cards' | '/api/generate-image' | '/card/$id'
+  to:
+    | '/'
+    | '/auth'
+    | '/create'
+    | '/cards'
+    | '/api/generate-image'
+    | '/api/models'
+    | '/card/$id'
   id:
     | '__root__'
     | '/'
@@ -97,6 +114,7 @@ export interface FileRouteTypes {
     | '/create'
     | '/_authenticated/cards'
     | '/api/generate-image'
+    | '/api/models'
     | '/card/$id'
   fileRoutesById: FileRoutesById
 }
@@ -106,6 +124,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   CreateRoute: typeof CreateRoute
   ApiGenerateImageRoute: typeof ApiGenerateImageRoute
+  ApiModelsRoute: typeof ApiModelsRoute
   CardIdRoute: typeof CardIdRoute
 }
 
@@ -146,6 +165,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CardIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/models': {
+      id: '/api/models'
+      path: '/api/models'
+      fullPath: '/api/models'
+      preLoaderRoute: typeof ApiModelsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/generate-image': {
       id: '/api/generate-image'
       path: '/api/generate-image'
@@ -180,6 +206,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   CreateRoute: CreateRoute,
   ApiGenerateImageRoute: ApiGenerateImageRoute,
+  ApiModelsRoute: ApiModelsRoute,
   CardIdRoute: CardIdRoute,
 }
 export const routeTree = rootRouteImport
