@@ -1,76 +1,55 @@
+# Conversational card editor
 
-## What we're building
+Make `/create` feel like Lovable: a chat panel on the left where you converse with Pigeon to build the card, and a live preview on the right. A pill toggle at the top of the left panel switches between **Chat** and **Editor** — same underlying card state, two ways to shape it.
 
-A Lovable.dev-style site rethemed for AI-generated e-cards. Users describe the card they want ("birthday card for my sister who loves cats"), we generate a unique image + heartfelt message with AI, then email it to a recipient. Authenticated users get a history of cards they've sent.
+## UX
 
-Visual direction: match Lovable.dev closely — dark background, gradient hero, minimal nav, big prompt-in-hero, example prompts as chips, feature strip below.
-
-## Pages / routes
-
+```text
+┌──────────────────────────────────────────────────────────────┐
+│  Pigeon                                     [ Chat | Editor ]│
+├───────────────────────────┬──────────────────────────────────┤
+│  ● Pigeon                 │                                  │
+│  Hi! Who's this card for? │       ┌────────────────────┐     │
+│                           │       │                    │     │
+│  ○ You                    │       │   card image       │     │
+│  A birthday card for my   │       │                    │     │
+│  sister — she loves cats  │       └────────────────────┘     │
+│                           │       "handwritten message…"     │
+│  ● Pigeon                 │                                  │
+│  Painting it now ✎        │                                  │
+│                           │                                  │
+│  [ Type a message… ] [→]  │       To: ____  Email: ____ [Send]│
+└───────────────────────────┴──────────────────────────────────┘
 ```
-/                       Landing: dark hero, prompt textarea, example chips, features, footer
-/create                 Full creator: prompt → live preview (streaming image + message) → recipient email → send
-/card/:id               Public shareable card view (link included in the email)
-/auth                   Sign in / sign up (email+password + Google)
-/_authenticated/cards   "My cards" — list of cards the user has sent
-/api/generate-image     Server route, SSE stream (OpenAI gpt-image-2)
-```
 
-Server functions (`src/lib/cards.functions.ts`):
-- `generateMessage({ prompt, occasion })` — Gemini flash, returns short heartfelt message
-- `saveCard({ prompt, message, imageBase64, recipientEmail, recipientName })` — uploads image to storage, inserts row, returns id
-- `sendCard({ cardId })` — enqueues app email to recipient via Lovable Emails
+- **Chat mode (default):** AI Elements composer + transcript. User types things like "make it more whimsical", "shorter message", "add a cat wearing a party hat". The assistant streams a reply and, when the request implies an edit, triggers image/message regeneration. Preview updates live on the right.
+- **Editor mode:** the existing form (prompt textarea, occasion chips, message textarea with Rewrite, recipient fields, Send). Same state — anything the chat produced is editable here, and any edits here show up when you flip back to chat.
+- **Recipient + Send** stay pinned under the preview in both modes so sending never requires switching.
+- Toggle is a segmented control top-right of the left panel; state persists per session.
 
-## Backend (Lovable Cloud)
+## Implementation
 
-Enable Lovable Cloud. Then:
-
-**Storage bucket** `card-images` (public) — final rendered card PNGs.
-
-**Table** `public.cards`
-- `id uuid pk`, `user_id uuid null references auth.users(id)`, `prompt text`, `message text`, `image_url text`, `recipient_email text`, `recipient_name text`, `sent_at timestamptz`, `created_at timestamptz default now()`
-- RLS: owner can select/insert/update own rows; anyone (`anon` + `authenticated`) can SELECT a single row by id (for the public share page) with only safe columns queried; service_role full.
-- Grants per project rules.
-
-**Auth**: email/password + Google (via Lovable broker). No profiles table.
-
-**Email**: enable Lovable Emails + email domain. Scaffold app emails. Template `card-delivery.tsx` with sender's message, card image, and link to `/card/:id`.
-
-## AI
-
-- Image: `POST /api/generate-image` streams `openai/gpt-image-2`, `quality: "low"`, `stream: true`, `partial_images: 1`. Client uses `eventsource-parser` + `flushSync`, blurs partials, unblurs on completion. On finalize we upload the last PNG to the `card-images` bucket via a server function.
-- Message: `generateMessage` server fn using `google/gemini-3-flash-preview` returning `{ message: string }` (short, warm, 2–4 sentences).
-
-Both run in parallel in the `/create` flow.
-
-## UX flow on `/create`
-
-1. User types prompt (optional occasion selector: birthday / thank you / congrats / holiday / just because).
-2. Click "Generate" → parallel: streaming image (blurred → sharp) + message appears.
-3. User can regenerate either independently.
-4. Enter recipient name + email, optional sender name.
-5. "Send card" → `saveCard` then `sendCard`. Toast + redirect to `/card/:id` where sender can also copy link.
-
-Unauthenticated users can generate and send freely; if signed in, card is attached to their `user_id` and shows up under `/cards`.
-
-## Visual system
-
-- Tokens in `src/styles.css`: near-black background `oklch(0.15 0.02 260)`, off-white foreground, primary gradient from soft pink `oklch(0.78 0.15 15)` → warm amber `oklch(0.82 0.14 70)` (evokes greeting-card warmth vs Lovable's pink/orange).
-- Font: Inter via `<link>` in `__root.tsx` head.
-- Reused Lovable-style patterns: sticky translucent nav, gradient text on hero heading, subtle grid/noise background, prompt card with rounded-2xl and glow shadow, chip row of example prompts, three-column feature strip, minimal footer.
-- Update `__root.tsx` head with real title/description/OG metadata ("Sendcard — AI-generated e-cards").
-
-## Out of scope (this build)
-
-- Payments / paid tiers
-- Scheduled sending
-- Recipient reply flow
-- Card animations / video cards
+- New `src/routes/create.tsx` layout: two-column, left column has the mode toggle + either `<ChatPanel />` or `<EditorPanel />`, right column is the shared `<CardPreview />` + `<SendBar />`.
+- Lift card state (`prompt`, `occasion`, `image`, `isFinalImage`, `message`, recipient fields, loading flags) into `useCardDraft()` hook so chat and editor mutate the same store. Regenerate helpers (`regenerateImage`, `regenerateMessage`) live here and reuse `streamImage` + `generateMessage` unchanged.
+- New `src/routes/api/chat.ts` streaming server route using AI SDK + Lovable AI Gateway (`google/gemini-3-flash-preview`) via the existing gateway helper pattern. System prompt: "You are Pigeon, helping the sender craft an e-card. Ask 1 short question at a time. When the user's intent implies changing the art or the written message, respond with a tool call." Tools:
+  - `updateBrief({ prompt?, occasion?, recipientName?, senderName? })`
+  - `regenerateImage({ prompt })` — server just echoes the new prompt; client-side `onToolCall` runs `streamImage` and updates preview.
+  - `rewriteMessage({ tone?, length?, notes? })` — client runs `generateMessage` with merged brief.
+- Client uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport({ api: "/api/chat" })`, keyed to session (no persistence — matches current app; can add later). Handle `onToolCall` to mutate the draft store and trigger regeneration; render tool parts inline (small "Repainting…" / "Rewriting…" chips).
+- Install AI Elements primitives: `bunx ai-elements@latest add conversation message prompt-input shimmer tool`. Compose `<Conversation>/<Message>/<MessageResponse>` for the transcript, `<PromptInput>` for the composer, `<Tool defaultOpen={false}>` for tool cards, `<Shimmer>` for the submitted state. Assistant messages have no background; user bubble uses `bg-foreground text-background`.
+- Toggle: shadcn-style segmented control (two buttons) styled to match the off-white/ink theme; keyboard-accessible.
+- Preserve current visual language (Instrument Serif, ink CTA, champagne accents). No dark mode.
 
 ## Technical notes
 
-- `/api/generate-image` is a TSS server route (streaming requires it, not `createServerFn`).
-- `saveCard` uses `requireSupabaseAuth` only when a user is signed in; also expose an unauthenticated variant that inserts with `user_id = null` under a narrow anon INSERT policy — OR simpler: always call an unauthenticated server fn that uses the server publishable client and a permissive anon INSERT policy scoped to the cards table. We'll go with the simpler path: anon can INSERT + SELECT-by-id; authenticated users additionally get SELECT/UPDATE where `user_id = auth.uid()`.
-- `/cards` lives under `_authenticated/` so the managed layout handles the gate.
-- Bearer attacher appended in `src/start.ts`.
-- Email send uses the scaffolded `/lovable/email/transactional/send` route with an `idempotencyKey` of `card-${cardId}`.
+- Route: keep `/create` with `validateSearch` for `?prompt=`. If a prompt is present on load, seed the draft and auto-send the first user message in chat mode so the conversation starts already in motion.
+- Server route uses `createFileRoute("/api/chat")({ server: { handlers: { POST } } })`, `streamText` with `tools`, `toUIMessageStreamResponse({ originalMessages })`. `LOVABLE_API_KEY` read inside the handler.
+- No DB changes; `saveCard`/`sendCard` continue as-is when the user hits Send.
+- Textarea/composer autofocus on mount, after send, and after mode switches to Chat.
+- Errors (429 / 402 / network) surface via `toast` and inline in the transcript.
+
+## Out of scope
+
+- Persisting chat history across reloads (add later if wanted).
+- Multi-turn image editing (each regen is a fresh generation from the merged prompt).
+- Email delivery changes.
