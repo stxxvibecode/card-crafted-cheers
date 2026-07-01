@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Ribbons({ phrase, palette, tempo, seed }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function Ribbons({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ...accents] = palette;
   const ribbons = useMemo(() => {
     const r = rng(seed);
