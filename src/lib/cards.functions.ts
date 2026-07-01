@@ -1,0 +1,128 @@
+import { createServerFn } from "@tanstack/react-start";
+import { createClient } from "@supabase/supabase-js";
+import { z } from "zod";
+import type { Database } from "@/integrations/supabase/types";
+
+function serverClient(bearer?: string) {
+  const url = process.env.SUPABASE_URL!;
+  const key = process.env.SUPABASE_PUBLISHABLE_KEY!;
+  return createClient<Database>(url, key, {
+    global: bearer ? { headers: { Authorization: `Bearer ${bearer}` } } : undefined,
+    auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+  });
+}
+
+// ---- Message generation ------------------------------------------------
+
+const MessageInput = z.object({
+  prompt: z.string().min(1).max(500),
+  occasion: z.string().max(64).optional(),
+  recipientName: z.string().max(80).optional(),
+  senderName: z.string().max(80).optional(),
+});
+
+export const generateMessage = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) => MessageInput.parse(raw))
+  .handler(async ({ data }) => {
+    const key = process.env.LOVABLE_API_KEY;
+    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+
+    const system = `You write short, warm, personal greeting card messages. 2–4 sentences. Sincere, specific, never generic. No hashtags, no emojis unless the prompt clearly calls for them. Do not sign the card. Do not include "Dear ___" salutations — start with the message itself.`;
+    const user = [
+      data.occasion ? `Occasion: ${data.occasion}` : null,
+      data.recipientName ? `Recipient: ${data.recipientName}` : null,
+      data.senderName ? `From: ${data.senderName}` : null,
+      `Prompt from sender: ${data.prompt}`,
+    ].filter(Boolean).join("\n");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      if (res.status === 429) throw new Error("Rate limit — please try again shortly.");
+      if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep generating.");
+      throw new Error(`AI error: ${res.status} ${text}`);
+    }
+    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
+    const message = json.choices?.[0]?.message?.content?.trim();
+    if (!message) throw new Error("No message generated");
+    return { message };
+  });
+
+// ---- Save card ---------------------------------------------------------
+
+const SaveInput = z.object({
+  prompt: z.string().min(1).max(500),
+  occasion: z.string().max(64).optional(),
+  message: z.string().min(1).max(4000),
+  imageDataUrl: z.string().min(20).max(8_000_000), // ~6MB base64
+  senderName: z.string().max(80).optional(),
+  recipientName: z.string().min(1).max(80),
+  recipientEmail: z.string().email().max(200),
+});
+
+export const saveCard = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) => SaveInput.parse(raw))
+  .handler(async ({ data }) => {
+    // Read optional bearer to associate to a user; otherwise anonymous card.
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const req = getRequest();
+    const auth = req?.headers.get("authorization") ?? undefined;
+    const bearer = auth?.startsWith("Bearer ") ? auth.slice(7) : undefined;
+
+    const sb = serverClient(bearer);
+    let userId: string | null = null;
+    if (bearer) {
+      const { data: userData } = await sb.auth.getUser(bearer);
+      userId = userData?.user?.id ?? null;
+    }
+
+    const { data: row, error } = await sb
+      .from("cards")
+      .insert({
+        user_id: userId,
+        prompt: data.prompt,
+        occasion: data.occasion ?? null,
+        message: data.message,
+        image_url: data.imageDataUrl,
+        sender_name: data.senderName ?? null,
+        recipient_name: data.recipientName,
+        recipient_email: data.recipientEmail,
+      })
+      .select("id")
+      .single();
+
+    if (error || !row) throw new Error(error?.message ?? "Failed to save card");
+    return { id: row.id as string };
+  });
+
+// ---- Send card (email) -------------------------------------------------
+
+const SendInput = z.object({ cardId: z.string().uuid() });
+
+export const sendCard = createServerFn({ method: "POST" })
+  .inputValidator((raw: unknown) => SendInput.parse(raw))
+  .handler(async ({ data }) => {
+    const sb = serverClient();
+    const { data: card, error } = await sb
+      .from("cards")
+      .select("id, message, image_url, sender_name, recipient_name, recipient_email, occasion")
+      .eq("id", data.cardId)
+      .maybeSingle();
+    if (error || !card) throw new Error("Card not found");
+
+    // Mark as sent (best-effort). Email delivery is stubbed for MVP — the
+    // recipient receives the shareable link on the confirmation screen.
+    await sb.from("cards").update({ sent_at: new Date().toISOString() }).eq("id", card.id);
+
+    return { ok: true, id: card.id };
+  });
