@@ -610,15 +610,25 @@ function ChatPanel({
 }) {
   const [text, setText] = useState(initialText);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const mediumPickerRef = useRef<HTMLDivElement | null>(null);
+  const hadPrefill = useRef(!!initialText.trim());
 
   useEffect(() => {
     textareaRef.current = document.querySelector<HTMLTextAreaElement>('textarea[data-slot="prompt-input-textarea"]') ?? null;
-    textareaRef.current?.focus();
+    if (hadPrefill.current && !medium) {
+      // Draw the eye to the medium picker first when arriving with a prefilled prompt.
+      mediumPickerRef.current?.focus();
+    } else {
+      textareaRef.current?.focus();
+    }
   }, []);
 
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
+
+  const needsMedium = !medium;
+  const attention = needsMedium && hadPrefill.current;
 
   const canSubmit = !!medium && !!text.trim() && !busy;
 
