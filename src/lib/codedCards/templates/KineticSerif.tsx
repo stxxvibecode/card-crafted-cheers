@@ -1,4 +1,4 @@
-export function KineticSerif({ phrase, palette, tempo }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function KineticSerif({ phrase, message, palette, tempo }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ink, a1, a2] = palette;
   const words = phrase.split(" ");
   const dur = 0.9 / tempo;
