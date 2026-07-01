@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Fireworks({ phrase, palette, tempo, seed }: { phrase: string; palette: string[]; tempo: number; seed: number }) {
+export function Fireworks({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
   const [bg, ...accents] = palette;
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
