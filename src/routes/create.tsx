@@ -582,12 +582,14 @@ function PlanCard({
   if (plan.occasion) rows.push(["Occasion", plan.occasion]);
   if (proposedMedium) rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
   if (proposedMedium === "code" && plan.codeTemplate) rows.push(["Template", plan.codeTemplate]);
+  if (proposedMedium === "code" && plan.codeMotion) rows.push(["Motion", plan.codeMotion]);
   if (plan.prompt) rows.push(["Vibe", plan.prompt.length > 90 ? plan.prompt.slice(0, 87) + "…" : plan.prompt]);
   if (plan.recipientName) rows.push(["For", plan.recipientName]);
   if (plan.senderName) rows.push(["From", plan.senderName]);
   if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
 
   const disabled = plan.built || building;
+  const paletteSwatches = proposedMedium === "code" && plan.codePalette && plan.codePalette.length > 0 ? plan.codePalette : null;
 
   return (
     <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
@@ -605,6 +607,21 @@ function PlanCard({
         </dl>
       ) : (
         <p className="text-muted-foreground">Ready when you are.</p>
+      )}
+      {paletteSwatches && (
+        <div className="mt-2 grid grid-cols-[70px_1fr] gap-2">
+          <span className="text-muted-foreground">Palette</span>
+          <div className="flex flex-wrap gap-1.5">
+            {paletteSwatches.map((c, i) => (
+              <span
+                key={i}
+                title={c}
+                className="h-4 w-4 rounded-full border border-border shadow-sm"
+                style={{ backgroundColor: c }}
+              />
+            ))}
+          </div>
+        </div>
       )}
       <button
         onClick={() => onBuild(plan)}
