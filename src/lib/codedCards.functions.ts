@@ -315,7 +315,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
         data.templateHint ? `Sender prefers the ${data.templateHint} template.` : null,
       ].filter(Boolean).join("\n");
 
-      const raw = await callChat(key, PICKER_MODEL, system, user, { schema: OUT, schemaName: "card_spec" }).catch(() => "");
+      const raw = await callChat(model, system, user, { json: true }).catch(() => "");
       let parsed: { template: string; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* fall through */ }
       const template = (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
