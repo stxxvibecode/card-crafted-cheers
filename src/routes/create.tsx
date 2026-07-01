@@ -349,7 +349,18 @@ function Create() {
     setIsFinalImage(false);
     setImgLoading(false);
     setCodeLoading(false);
+    setPreviewTab("preview");
     setDraft((d) => ({ ...d, medium: m, codeSpec: undefined }));
+  }
+
+  function applyHandEditedSource(source: string) {
+    const spec = draft.codeSpec;
+    if (!spec) return;
+    setDraft((d) => ({
+      ...d,
+      codeSpec: { ...spec, template: "ai", source, seed: Math.floor(Math.random() * 1e6) },
+    }));
+    toast.success("Running your edited code");
   }
 
   function shufflePalette() {
