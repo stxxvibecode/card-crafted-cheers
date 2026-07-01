@@ -195,7 +195,8 @@ export const generateCodedCard = createServerFn({ method: "POST" })
       // If we have prior source, ask the model to rewrite it end-to-end.
       if (prior?.source) {
         const user = [
-          `Current card phrase: "${finalPhrase}"`,
+          `Current card phrase (headline): "${finalPhrase}"`,
+          finalMessage ? `Current card message (personal note): """${finalMessage}"""` : `Current card message: (empty)`,
           `Current palette: ${JSON.stringify(prior.palette ?? [])}`,
           `Current tempo: ${prior.tempo ?? 1}`,
           data.paletteHint?.length ? `Sender's palette suggestion: ${JSON.stringify(data.paletteHint)}` : null,
@@ -212,6 +213,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
           template: "ai",
           palette,
           phrase: finalPhrase,
+          message: finalMessage || undefined,
           tempo: Math.max(0.4, Math.min(2, prior.tempo ?? 1)),
           seed,
           source,
