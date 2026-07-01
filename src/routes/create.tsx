@@ -188,12 +188,17 @@ function Create() {
         !!u.codeTemplate || u.regenerateImage;
 
       const planId = crypto.randomUUID();
+      const planForBuild: PlanUpdates = { ...u, id: planId, built: false };
       setMessages((prev) => [
         ...prev,
         { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
       ]);
       if (hasProposals) {
-        setPendingPlan({ ...u, id: planId, built: false });
+        setPendingPlan(planForBuild);
+        if (actionMode === "build" && (planForBuild.medium ?? draftRef.current.medium)) {
+          // Auto-execute build right away.
+          setTimeout(() => commitPlanRef.current?.(planForBuild), 0);
+        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Chat failed");
@@ -201,6 +206,8 @@ function Create() {
       setChatBusy(false);
     }
   }
+
+  const commitPlanRef = useRef<((p: PlanUpdates) => void) | null>(null);
 
   const commitPlan = useCallback(async (plan: PlanUpdates) => {
     const currentDraft = draftRef.current;
