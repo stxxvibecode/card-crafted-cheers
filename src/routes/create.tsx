@@ -98,12 +98,13 @@ function Create() {
   const [sending, setSending] = useState(false);
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
+  const [actionMode, setActionMode] = useState<"plan" | "build">("plan");
   const [messages, setMessages] = useState<ChatMsg[]>(() => [
     {
       id: "seed",
       role: "assistant",
       content:
-        "Hi, I'm Pigeon. First, tap Art or Code on the right to pick a medium — then tell me who this card is for and how you'd like it to feel. I'll draft a plan; you hit Build when it's right.",
+        "Hi, I'm Pigeon. Pick your medium and Plan or Build below, then tell me who this card is for and how you'd like it to feel.",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
