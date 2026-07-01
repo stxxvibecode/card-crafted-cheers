@@ -25,7 +25,7 @@ export function SiteNav() {
           <span className="grid h-7 w-7 place-items-center rounded-lg bg-gradient-to-br from-blush to-amber text-background">
             <Sparkles className="h-4 w-4" />
           </span>
-          <span>Sendcard</span>
+          <span>Pigeon</span>
         </Link>
         <div className="flex items-center gap-1 text-sm">
           <Link to="/create" className="rounded-full px-3 py-1.5 text-muted-foreground hover:text-foreground">

@@ -42,7 +42,7 @@ function Index() {
             <span className="italic text-foreground/90">that feels like you.</span>
           </h1>
           <p className="mx-auto mt-6 max-w-xl text-base text-muted-foreground sm:text-lg">
-            Describe the card you want. Sendcard writes the message and paints the artwork,
+            Describe the card you want. Pigeon writes the message and paints the artwork,
             then delivers it to whoever needs it — no templates, no clip art.
           </p>
 
@@ -126,7 +126,7 @@ function Index() {
       </section>
 
       <footer className="border-t border-border/60 py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} Sendcard. Made with warmth.
+        © {new Date().getFullYear()} Pigeon. Made with warmth.
       </footer>
     </div>
   );
