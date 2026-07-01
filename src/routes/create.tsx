@@ -552,7 +552,7 @@ function PlanCard({
   if (plan.senderName) rows.push(["From", plan.senderName]);
   if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
 
-  const disabled = plan.built || building || !proposedMedium;
+  const disabled = plan.built || building;
 
   return (
     <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
@@ -577,7 +577,7 @@ function PlanCard({
         className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-40"
       >
         {building ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hammer className="h-3 w-3" />}
-        {plan.built ? "Built" : !proposedMedium ? "Pick Art or Code above" : "Build card"}
+        {plan.built ? "Built" : "Build card"}
       </button>
     </div>
   );
