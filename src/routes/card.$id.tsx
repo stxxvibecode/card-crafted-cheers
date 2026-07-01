@@ -3,21 +3,25 @@ import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav } from "@/components/site-nav";
 import { Copy, Check, ArrowRight } from "lucide-react";
+import { CodedCard } from "@/lib/codedCards/CodedCard";
+import type { CodeSpec } from "@/lib/codedCards/registry";
 
 type Card = {
   id: string;
   message: string;
-  image_url: string;
+  image_url: string | null;
   sender_name: string | null;
   recipient_name: string;
   occasion: string | null;
+  medium: "art" | "code";
+  code_spec: CodeSpec | null;
 };
 
 export const Route = createFileRoute("/card/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase
       .from("cards")
-      .select("id, message, image_url, sender_name, recipient_name, occasion")
+      .select("id, message, image_url, sender_name, recipient_name, occasion, medium, code_spec")
       .eq("id", params.id)
       .maybeSingle();
     if (error || !data) throw notFound();
@@ -29,7 +33,9 @@ export const Route = createFileRoute("/card/$id")({
       { name: "description", content: loaderData.card.message.slice(0, 160) },
       { property: "og:title", content: `A card for ${loaderData.card.recipient_name}` },
       { property: "og:description", content: loaderData.card.message.slice(0, 160) },
-      { property: "og:image", content: loaderData.card.image_url.startsWith("http") ? loaderData.card.image_url : "" },
+      ...(loaderData.card.image_url?.startsWith("http")
+        ? [{ property: "og:image", content: loaderData.card.image_url }]
+        : []),
     ] : [],
   }),
   component: CardPage,
@@ -63,7 +69,13 @@ function CardPage() {
           <span className="text-foreground">{card.recipient_name}</span>
         </p>
         <article className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-[0_40px_100px_-40px_rgba(0,0,0,0.7)]">
-          <img src={card.image_url} alt="" className="aspect-square w-full object-cover" />
+          <div className="aspect-square w-full">
+            {card.medium === "code" && card.code_spec ? (
+              <CodedCard spec={card.code_spec} />
+            ) : card.image_url ? (
+              <img src={card.image_url} alt="" className="h-full w-full object-cover" />
+            ) : null}
+          </div>
           <div className="space-y-4 p-8 sm:p-10">
             <p className="whitespace-pre-line font-display text-2xl leading-snug italic sm:text-3xl">
               {card.message}
