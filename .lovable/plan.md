@@ -1,55 +1,30 @@
-# Conversational card editor
 
-Make `/create` feel like Lovable: a chat panel on the left where you converse with Pigeon to build the card, and a live preview on the right. A pill toggle at the top of the left panel switches between **Chat** and **Editor** — same underlying card state, two ways to shape it.
+## Goal
+When the card's occasion is "Thank You" (or Birthday, Congrats, etc.), the generated artwork itself should include the phrase rendered as part of the design — hand-lettered, embossed, floral typography, etc. — not just show it as separate text below the image.
 
-## UX
+## Approach
+Enrich the image prompt sent to `openai/gpt-image-2` so it always includes an explicit typography instruction tied to the occasion.
 
-```text
-┌──────────────────────────────────────────────────────────────┐
-│  Pigeon                                     [ Chat | Editor ]│
-├───────────────────────────┬──────────────────────────────────┤
-│  ● Pigeon                 │                                  │
-│  Hi! Who's this card for? │       ┌────────────────────┐     │
-│                           │       │                    │     │
-│  ○ You                    │       │   card image       │     │
-│  A birthday card for my   │       │                    │     │
-│  sister — she loves cats  │       └────────────────────┘     │
-│                           │       "handwritten message…"     │
-│  ● Pigeon                 │                                  │
-│  Painting it now ✎        │                                  │
-│                           │                                  │
-│  [ Type a message… ] [→]  │       To: ____  Email: ____ [Send]│
-└───────────────────────────┴──────────────────────────────────┘
-```
+### 1. Prompt composition helper (`src/lib/cards.functions.ts`)
+Add a small `buildImagePrompt({ prompt, occasion })` that:
+- Maps occasion → display phrase (`thank-you` → "Thank You", `birthday` → "Happy Birthday", `congrats` → "Congratulations", `thinking-of-you` → "Thinking of You", `love` → "With Love", fallback → none).
+- Appends a typography clause to the user's art prompt, e.g.:
+  > "Incorporate the phrase **"Thank You"** as the focal typographic element — elegant hand-lettered serif integrated into the composition, legible, correctly spelled, no extra words, no watermark, no signature."
+- Adds guardrails gpt-image-2 responds well to: "spell the phrase exactly", "single instance of the text", "no gibberish letters elsewhere".
 
-- **Chat mode (default):** AI Elements composer + transcript. User types things like "make it more whimsical", "shorter message", "add a cat wearing a party hat". The assistant streams a reply and, when the request implies an edit, triggers image/message regeneration. Preview updates live on the right.
-- **Editor mode:** the existing form (prompt textarea, occasion chips, message textarea with Rewrite, recipient fields, Send). Same state — anything the chat produced is editable here, and any edits here show up when you flip back to chat.
-- **Recipient + Send** stay pinned under the preview in both modes so sending never requires switching.
-- Toggle is a segmented control top-right of the left panel; state persists per session.
+Use this helper in both places that currently build the image prompt:
+- The `/api/generate-image` server route call site (wherever the prompt is assembled before `streamImage`).
+- The chat editor's regenerate path in `src/lib/chatCard.functions.ts` when it returns `regenerateImage: true`.
 
-## Implementation
+### 2. Chat agent awareness (`src/lib/chatCard.functions.ts`)
+Update the system prompt so Pigeon knows: when the user says "make it a thank you card", it should set `occasion: "thank-you"` AND flip `regenerateImage: true` so the new artwork picks up the typographic phrase. No schema change — just prompt guidance.
 
-- New `src/routes/create.tsx` layout: two-column, left column has the mode toggle + either `<ChatPanel />` or `<EditorPanel />`, right column is the shared `<CardPreview />` + `<SendBar />`.
-- Lift card state (`prompt`, `occasion`, `image`, `isFinalImage`, `message`, recipient fields, loading flags) into `useCardDraft()` hook so chat and editor mutate the same store. Regenerate helpers (`regenerateImage`, `regenerateMessage`) live here and reuse `streamImage` + `generateMessage` unchanged.
-- New `src/routes/api/chat.ts` streaming server route using AI SDK + Lovable AI Gateway (`google/gemini-3-flash-preview`) via the existing gateway helper pattern. System prompt: "You are Pigeon, helping the sender craft an e-card. Ask 1 short question at a time. When the user's intent implies changing the art or the written message, respond with a tool call." Tools:
-  - `updateBrief({ prompt?, occasion?, recipientName?, senderName? })`
-  - `regenerateImage({ prompt })` — server just echoes the new prompt; client-side `onToolCall` runs `streamImage` and updates preview.
-  - `rewriteMessage({ tone?, length?, notes? })` — client runs `generateMessage` with merged brief.
-- Client uses `useChat` from `@ai-sdk/react` with `DefaultChatTransport({ api: "/api/chat" })`, keyed to session (no persistence — matches current app; can add later). Handle `onToolCall` to mutate the draft store and trigger regeneration; render tool parts inline (small "Repainting…" / "Rewriting…" chips).
-- Install AI Elements primitives: `bunx ai-elements@latest add conversation message prompt-input shimmer tool`. Compose `<Conversation>/<Message>/<MessageResponse>` for the transcript, `<PromptInput>` for the composer, `<Tool defaultOpen={false}>` for tool cards, `<Shimmer>` for the submitted state. Assistant messages have no background; user bubble uses `bg-foreground text-background`.
-- Toggle: shadcn-style segmented control (two buttons) styled to match the off-white/ink theme; keyboard-accessible.
-- Preserve current visual language (Instrument Serif, ink CTA, champagne accents). No dark mode.
+### 3. Editor mode (`src/routes/create.tsx`)
+No structural change. When occasion changes in the editor, trigger the existing regenerate flow (already wired) so the on-image text updates.
 
-## Technical notes
-
-- Route: keep `/create` with `validateSearch` for `?prompt=`. If a prompt is present on load, seed the draft and auto-send the first user message in chat mode so the conversation starts already in motion.
-- Server route uses `createFileRoute("/api/chat")({ server: { handlers: { POST } } })`, `streamText` with `tools`, `toUIMessageStreamResponse({ originalMessages })`. `LOVABLE_API_KEY` read inside the handler.
-- No DB changes; `saveCard`/`sendCard` continue as-is when the user hits Send.
-- Textarea/composer autofocus on mount, after send, and after mode switches to Chat.
-- Errors (429 / 402 / network) surface via `toast` and inline in the transcript.
+### 4. Model note
+Keep `openai/gpt-image-2` — it renders short phrases reliably. No model swap, no new deps, no DB change.
 
 ## Out of scope
-
-- Persisting chat history across reloads (add later if wanted).
-- Multi-turn image editing (each regen is a fresh generation from the merged prompt).
-- Email delivery changes.
+- Custom fonts / user-typed on-image text (only occasion-driven phrases).
+- Multi-line messages inside the art (message stays below the image).
