@@ -589,6 +589,9 @@ function ChatPanel({
   onSend,
   pendingPlan,
   medium,
+  setMedium,
+  actionMode,
+  setActionMode,
   onBuild,
   building,
   initialText,
@@ -598,6 +601,9 @@ function ChatPanel({
   onSend: (text: string) => void;
   pendingPlan: PlanUpdates | null;
   medium?: Medium;
+  setMedium: (m: Medium) => void;
+  actionMode: "plan" | "build";
+  setActionMode: (m: "plan" | "build") => void;
   onBuild: (p: PlanUpdates) => void;
   building: boolean;
   initialText: string;
@@ -613,6 +619,8 @@ function ChatPanel({
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
+
+  const canSubmit = !!medium && !!text.trim() && !busy;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -650,6 +658,7 @@ function ChatPanel({
           onSubmit={(msg) => {
             const t = msg.text.trim();
             if (!t) return;
+            if (!medium) { toast.error("Pick Art or Code below first."); return; }
             setText("");
             onSend(t);
           }}
@@ -657,14 +666,41 @@ function ChatPanel({
           <PromptInputTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={medium ? "Tell Pigeon what to change…" : "Pick Art or Code, then describe your card…"}
+            placeholder={medium ? "Describe your card, or ask for changes…" : "Pick a medium below, then describe your card…"}
             disabled={busy}
           />
 
-          <PromptInputFooter className="justify-end">
+          <PromptInputFooter className="justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setMedium("art")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Palette className="h-3 w-3" /> Art
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMedium("code")}
+                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  <Code2 className="h-3 w-3" /> Code
+                </button>
+              </div>
+              <select
+                value={actionMode}
+                onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
+                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none hover:border-foreground/40"
+                aria-label="Action mode"
+              >
+                <option value="plan">Plan</option>
+                <option value="build">Build</option>
+              </select>
+            </div>
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}
-              disabled={busy || !text.trim()}
+              disabled={!canSubmit}
             >
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
