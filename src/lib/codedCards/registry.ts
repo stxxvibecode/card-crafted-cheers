@@ -10,7 +10,8 @@ export type TemplateId =
 export type CodeSpec = {
   template: TemplateId;
   palette: string[];   // 3-5 hex colors, first is background
-  phrase: string;
+  phrase: string;      // short headline (e.g. "Happy Birthday")
+  message?: string;    // full personal note, rendered as secondary text
   tempo: number;       // 0.5 (slow) — 2 (fast)
   seed: number;
   source?: string;     // only when template === 'ai' — sandboxed JS body
