@@ -147,6 +147,7 @@ function Create() {
     paletteHint?: string[];
     instruction?: string;
     phrase?: string;
+    message?: string;
   }) => {
     const d = draftRef.current;
     setCodeLoading(true);
@@ -155,7 +156,8 @@ function Create() {
         data: {
           prompt: d.prompt || undefined,
           occasion: d.occasion,
-          phrase: opts.phrase ?? d.codeSpec?.phrase ?? phraseFor(d.occasion),
+          phrase: opts.phrase ?? phraseFor(d.occasion),
+          message: (opts.message ?? d.message) || undefined,
           mode: opts.mode,
           templateHint: opts.templateHint,
           motionHint: opts.motionHint,
