@@ -7,16 +7,27 @@ type LavaModel = { id: string; owned_by?: string };
 type Bucket = "chat" | "image";
 type Categorised = { id: string; owned_by: string; bucket: Bucket };
 
-const IMAGE_HINTS = [
-  "image", "img", "dall-e", "flux", "imagen", "stable-diffusion", "sd-",
-  "photon", "playground-v", "kandinsky", "recraft", "ideogram",
+// Real generative model families. We match on well-known LLM/image slugs so the
+// picker stays focused instead of showing tool-use endpoints (affinity-*, brave-*, etc.).
+const CHAT_HINTS = [
+  "gpt", "o1", "o3", "o4", "claude", "gemini", "grok", "llama", "mistral",
+  "mixtral", "qwen", "deepseek", "command", "sonar", "phi-", "yi-", "nova",
+  "cohere", "kimi", "hermes",
 ];
+const IMAGE_HINTS = [
+  "gpt-image", "dall-e", "flux", "imagen", "stable-diffusion", "sdxl", "sd3",
+  "playground-v", "kandinsky", "recraft", "ideogram", "photon",
+];
+const CHAT_EXCLUDE = ["embed", "whisper", "tts", "moderation", "rerank", "guard", "vision-encoder"];
 
-function categorise(id: string): Bucket {
+function categorise(id: string): "chat" | "image" | null {
   const s = id.toLowerCase();
   if (IMAGE_HINTS.some((h) => s.includes(h))) return "image";
-  return "chat";
+  if (CHAT_EXCLUDE.some((h) => s.includes(h))) return null;
+  if (CHAT_HINTS.some((h) => s.includes(h))) return "chat";
+  return null;
 }
+
 
 let cache: { at: number; body: string } | null = null;
 const TTL = 5 * 60 * 1000;
