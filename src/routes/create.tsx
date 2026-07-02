@@ -581,7 +581,7 @@ function Create() {
                         <Palette className="h-5 w-5" />
                         <Code2 className="h-5 w-5" />
                       </div>
-                      <p>Pick a medium in the composer to begin.</p>
+                      <p>Pick a medium above to begin.</p>
                     </div>
                   </div>
                 ) : draft.medium === "art" ? (
