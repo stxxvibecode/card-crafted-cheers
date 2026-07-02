@@ -120,7 +120,7 @@ function Create() {
       id: "seed",
       role: "assistant",
       content:
-        "Hi, I'm Pigeon. Pick your medium and Plan or Build below, then tell me who this card is for and how you'd like it to feel.",
+        "Hi, I'm Pigeon. Pick your medium and Plan or Build mode, then tell me who this card is for and how you'd like it to feel.",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
