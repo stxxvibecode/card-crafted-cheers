@@ -200,6 +200,104 @@ function cleanPalette(input: string[] | undefined, fallback: string[]): string[]
   return cleaned.length >= 3 ? cleaned.slice(0, 5) : fallback;
 }
 
+// ---------------- Self-check: detect repeats & anti-patterns ----------------
+
+const KNOWN_MOVES = [
+  "poster-grid", "editorial-split", "wordmark-as-hero", "cinema-letterbox",
+  "ticker", "marquee", "constellation", "ink-bloom", "watercolor-bloom",
+  "ribbon-sweep", "silk-sweep", "particle-burst", "monospace-grid",
+  "full-bleed-type", "diagonal-band",
+] as const;
+
+// Module-scoped LRU of recent moves per bucket (occasion). Survives across
+// requests in the same worker instance so repeated generations force variety.
+const recentMoves = new Map<string, string[]>();
+const RECENT_LIMIT = 4;
+
+function bucketKey(occasion?: string) {
+  return (occasion ?? "any").toLowerCase().trim();
+}
+
+function extractMove(source: string): string | null {
+  const line1 = source.split("\n", 1)[0] ?? "";
+  const m = line1.match(/\/\/\s*MOVE:\s*([a-z0-9-]+)/i);
+  return m ? m[1].toLowerCase() : null;
+}
+
+function detectAntiPatterns(source: string): string[] {
+  const issues: string[] = [];
+  const s = source;
+  // Centered flex column default
+  const centeredFlex = /flexDirection\s*:\s*['"]column['"]/i.test(s)
+    && /alignItems\s*:\s*['"]center['"]/i.test(s)
+    && /justifyContent\s*:\s*['"]center['"]/i.test(s);
+  if (centeredFlex) issues.push("uses the centered flex column default layout");
+  // Background particles / drifting circles pattern
+  const manyCircles = (s.match(/createElementNS\([^)]*,\s*['"]circle['"]\)/g) ?? []).length;
+  if (manyCircles >= 6) issues.push(`renders ${manyCircles} SVG circles (looks like background particles)`);
+  const particleLoop = /for\s*\(\s*let\s+i\s*=\s*0[^)]*i\s*<\s*(?:2\d|[3-9]\d|\d{3,})/.test(s)
+    && /(circle|particle|dot|confetti)/i.test(s);
+  if (particleLoop) issues.push("particle-swarm loop detected");
+  // Missing MOVE comment
+  if (!extractMove(s)) issues.push("missing `// MOVE: <name>` on line 1");
+  return issues;
+}
+
+function selfCheck(source: string, occasion: string | undefined): { ok: boolean; move: string | null; issues: string[]; repeats: boolean; recent: string[] } {
+  const move = extractMove(source);
+  const issues = detectAntiPatterns(source);
+  const recent = recentMoves.get(bucketKey(occasion)) ?? [];
+  const repeats = !!move && recent.includes(move);
+  return { ok: issues.length === 0 && !repeats, move, issues, repeats, recent };
+}
+
+function recordMove(occasion: string | undefined, move: string | null) {
+  if (!move) return;
+  const key = bucketKey(occasion);
+  const list = recentMoves.get(key) ?? [];
+  const next = [move, ...list.filter((m) => m !== move)].slice(0, RECENT_LIMIT);
+  recentMoves.set(key, next);
+}
+
+async function generateWithSelfCheck(
+  model: string | undefined,
+  system: string,
+  userPrompt: string,
+  occasion: string | undefined,
+): Promise<string> {
+  const recent = recentMoves.get(bucketKey(occasion)) ?? [];
+  const avoidLine = recent.length
+    ? `\nRECENTLY USED MOVES (avoid — pick a DIFFERENT one from the taxonomy): ${recent.join(", ")}`
+    : "";
+  const firstPrompt = userPrompt + avoidLine;
+
+  const first = stripFences(await callChat(model, system, firstPrompt));
+  const check = selfCheck(first, occasion);
+  if (check.ok) {
+    recordMove(occasion, check.move);
+    return first;
+  }
+
+  // Retry once with explicit forced-variety directive.
+  const forbid = Array.from(new Set([...(check.recent), ...(check.move ? [check.move] : [])]));
+  const remaining = KNOWN_MOVES.filter((m) => !forbid.includes(m));
+  const retryPrompt = [
+    firstPrompt,
+    "",
+    "SELF-CHECK FAILED on your previous attempt:",
+    ...check.issues.map((i) => `- ${i}`),
+    check.repeats && check.move ? `- design move "${check.move}" was used recently; do NOT reuse it` : null,
+    "",
+    `Rewrite from scratch. You MUST pick a design move from this shortlist and name it in the // MOVE: comment on line 1: ${remaining.slice(0, 8).join(", ")}.`,
+    "Do NOT use a centered flex column. Do NOT dump background particles/circles. Commit to a distinct compositional anchor.",
+  ].filter(Boolean).join("\n");
+
+  const second = stripFences(await callChat(model, system, retryPrompt));
+  const check2 = selfCheck(second, occasion);
+  recordMove(occasion, check2.move ?? check.move);
+  return second;
+}
+
 export const generateCodedCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => Input.parse(raw))
   .handler(async ({ data }): Promise<CodeSpec> => {
