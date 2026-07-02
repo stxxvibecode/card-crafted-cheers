@@ -400,7 +400,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `SENDER'S EDIT REQUEST: ${instruction}`,
       ].join("\n");
 
-      const sourceRaw = await callChat(model, CODE_SYSTEM, user);
+      const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion);
       return {
         template: "ai",
         palette,
@@ -408,7 +408,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         message: finalMessage || undefined,
         tempo,
         seed,
-        source: stripFences(sourceRaw),
+        source,
       };
     }
 
