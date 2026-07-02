@@ -181,7 +181,9 @@ function Create() {
             tempo: d.codeSpec.tempo,
             source: d.codeSpec.source,
           } : undefined,
+          model: prefsRef.current.chat,
         },
+
       });
       setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
     } catch (e) {
