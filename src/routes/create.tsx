@@ -136,16 +136,21 @@ function Create() {
   const regenerateImage = useCallback(async (imagePrompt: string, occasion?: string) => {
     setImage(null); setIsFinalImage(false); setImgLoading(true);
     try {
-      await streamImage("/api/generate-image", { prompt: imagePrompt, occasion }, (url, final) => {
-        setImage(url);
-        if (final) setIsFinalImage(true);
-      });
+      await streamImage(
+        "/api/generate-image",
+        { prompt: imagePrompt, occasion, model: prefsRef.current.image },
+        (url, final) => {
+          setImage(url);
+          if (final) setIsFinalImage(true);
+        },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Image generation failed");
     } finally {
       setImgLoading(false);
     }
   }, []);
+
 
   const regenerateCode = useCallback(async (opts: {
     mode: "template" | "ai" | "edit";
