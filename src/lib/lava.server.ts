@@ -15,7 +15,9 @@ export function lavaKey(): string {
 type ChatOpts = {
   json?: boolean; // request response_format: json_object
   temperature?: number;
+  maxTokens?: number;
 };
+
 
 export async function lavaChat(
   model: string | undefined,
