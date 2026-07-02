@@ -29,7 +29,9 @@ import {
   Hammer,
   Eye,
   FileCode2,
+  Download,
 } from "lucide-react";
+import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import { z } from "zod";
 import {
   Conversation,
