@@ -56,6 +56,11 @@ export const Route = createFileRoute("/create")({
 
 const OCCASIONS = ["Birthday", "Thank you", "Congrats", "Get well", "Holiday", "Anniversary", "Just because"];
 
+function wantsFreshCodeDesign(instruction?: string) {
+  if (!instruction) return false;
+  return /\b(different|vary|variation|fresh|new|another|again|redo|redesign|rebuild|not the same|same design|switch it up)\b/i.test(instruction);
+}
+
 type ChatMsg = { id: string; role: "user" | "assistant"; content: string; planId?: string };
 
 type Medium = "art" | "code";
@@ -306,14 +311,14 @@ function Create() {
       void regenerateImage(newPrompt, newOccasion ?? undefined);
     } else {
       const hint = plan.codeTemplate;
-      const isAi = hint === "ai";
       const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
       const motionHint = plan.codeMotion ?? undefined;
       const paletteHint = plan.codePalette ?? undefined;
       const messageForCard = nextMessage || undefined;
+      const freshDesign = wantsFreshCodeDesign(plan.instruction);
 
-      // If we already have a code spec, iterate on it via edit mode.
-      if (currentDraft.codeSpec) {
+      // If we already have a code spec, iterate for small tweaks; rebuild from scratch for variation requests.
+      if (currentDraft.codeSpec && !freshDesign) {
         void regenerateCode({
           mode: "edit",
           templateHint,
@@ -324,7 +329,7 @@ function Create() {
         });
       } else {
         void regenerateCode({
-          mode: isAi ? "ai" : "template",
+          mode: "ai",
           templateHint,
           motionHint,
           paletteHint,
@@ -344,7 +349,7 @@ function Create() {
     if (draft.medium === "art") {
       void regenerateImage(p, draft.occasion);
     } else {
-      void regenerateCode({ mode: "template" });
+      void regenerateCode({ mode: "ai" });
     }
     try {
       const r = await msgFn({ data: {
@@ -356,7 +361,7 @@ function Create() {
 
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code") {
-        void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
+        void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "ai", message: r.message });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Message generation failed");

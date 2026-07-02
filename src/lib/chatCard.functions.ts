@@ -88,7 +88,7 @@ Rules:
 - "regenerateImage" is true whenever the ART visual should be repainted. False for text-only edits or when medium is code.
 - Whenever occasion changes AND medium is "art", set regenerateImage: true.
 - Leave "medium" null unless the user explicitly asks to switch.
-- When medium is "code", propose codeTemplate, codeMotion (2-6 words), and codePalette (3-5 hex, background first) whenever you have a vision.
+- When medium is "code", set codeTemplate to "ai" for bespoke Lovable-grade coded cards, then propose codeMotion (2-6 words) and codePalette (3-5 hex, background first) whenever you have a vision.
 - For follow-up edits on a code card, only set the specific fields that should change.
 - If the sender hasn't described the card yet, ask a single warm question and leave all updates null.
 - The card message never starts with "Dear ___" and never signs a name. 2-4 sincere, specific sentences.
