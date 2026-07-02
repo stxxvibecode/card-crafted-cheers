@@ -58,6 +58,9 @@ Your function body is invoked with:
   seed:      number      — deterministic randomness input; USE IT to vary composition, direction, accent choice, easing
 Read the brief carefully. The occasion, concept, and message should each visibly influence the composition.
 
+FORCED VARIATION PROFILE
+You may receive a server-selected variation profile. Treat it as a creative director's hard constraint: use that exact design move in the first-line // MOVE comment, follow the specified alignment, type pairing, motion motif, and density, and do not collapse back to a generic centered card.
+
 HARD ANTI-PATTERNS (the model reflexively produces these — DO NOT)
 - Centered flex column with serif headline + smaller italic message + drifting circles/particles behind. This is the house default. Refuse it.
 - Rainbow confetti dumps or "50 particles bouncing" as a stand-in for design.
@@ -83,6 +86,7 @@ Choose the compositional system that fits the occasion. Do not always pick the s
 
 VARIATION RULES
 - Derive composition choice, accent index, motion direction, and easing curve from seed. Two different seeds MUST produce visibly different pieces.
+- If a FORCED VARIATION PROFILE is provided, it overrides your default move selection. Obey it exactly unless it would make the card illegible.
 - Do not always center. Alignment options: left, right, top-left, bottom-left, bottom-right, split, off-axis.
 - Do not always default to Instrument Serif. Serif options: '"Instrument Serif", "Fraunces", Georgia, serif' or '"Cormorant Garamond", "Fraunces", Georgia, serif'. Supporting type may use 'ui-monospace, "SF Mono", Menlo, monospace' or 'ui-sans-serif, system-ui, sans-serif' for captions, dates, ordinals ("№", "vol."), tracked-out small caps, drop caps.
 
@@ -229,10 +233,121 @@ const KNOWN_MOVES = [
   "full-bleed-type", "diagonal-band",
 ] as const;
 
+type KnownMove = typeof KNOWN_MOVES[number];
+
+type VariationProfile = {
+  move: KnownMove;
+  alignment: string;
+  anchor: string;
+  typePair: string;
+  motion: string;
+  density: string;
+  messagePlacement: string;
+};
+
 // Module-scoped LRU of recent moves per bucket (occasion). Survives across
 // requests in the same worker instance so repeated generations force variety.
 const recentMoves = new Map<string, string[]>();
+const recentSignatures = new Map<string, string[]>();
 const RECENT_LIMIT = 4;
+
+const ALIGNMENTS = [
+  "top-left with a strong right-side visual field",
+  "bottom-left with generous quiet space above",
+  "right-aligned type with left-side motion anchor",
+  "off-axis diagonal alignment, never centered",
+  "split composition with asymmetric 60/40 weight",
+  "full-bleed edge typography with message tucked into a quiet corner",
+  "letterbox composition with horizontal tension",
+  "low horizon line with headline floating above it",
+] as const;
+
+const ANCHORS = [
+  "one oversized glyph or numeral",
+  "a single organic bloom shape",
+  "a kinetic type band crossing the frame",
+  "a sparse constellation diagram",
+  "a sweeping silk/ribbon form",
+  "a cropped typographic wordmark",
+  "a geometric editorial grid",
+  "one luminous candle/sun/halo motif",
+] as const;
+
+const TYPE_PAIRS = [
+  "Cormorant Garamond headline + uppercase mono caption",
+  "Instrument Serif italic headline + system sans message",
+  "Fraunces/Georgia display headline + SF Mono micro-labels",
+  "large edge-to-edge serif wordmark + restrained sans note",
+  "mono grid texture + elegant serif phrase breaking out",
+  "upright editorial serif + small-caps geometric sans metadata",
+] as const;
+
+const MOTIONS = [
+  "one bloom that expands then settles into a still frame",
+  "a single diagonal sweep that reveals the typography",
+  "letters arriving in staggered waves, then holding still",
+  "two or three lines connecting slowly like a keepsake diagram",
+  "a quiet ticker band moving behind a static headline",
+  "a candle/sun/halo breathing at a calm low amplitude",
+  "one burst that resolves quickly into a composed final poster",
+  "subtle parallax between foreground type and one abstract form",
+] as const;
+
+const DENSITIES = [
+  "minimal: 70% quiet space, one accent only",
+  "editorial: structured grid, two visual zones, sparse detail",
+  "lush but controlled: one hero form, a few supporting marks",
+  "typographic: phrase carries most of the visual weight",
+  "diagrammatic: thin lines, labels, and one emotional focal point",
+] as const;
+
+const MESSAGE_PLACEMENTS = [
+  "message in a lower-left column, max 36ch",
+  "message in a right-side quiet zone, max 34ch",
+  "message as a small footer band, not centered under the headline",
+  "message aligned to the same diagonal axis as the headline",
+  "message in an editorial caption block with a fine rule",
+  "message tucked into negative space inside/near the hero form",
+] as const;
+
+function pickFrom<T>(items: readonly T[], seed: number, salt: number): T {
+  const n = Math.abs(Math.imul(seed ^ (salt * 2654435761), 1597334677));
+  return items[n % items.length];
+}
+
+function buildVariationProfile(seed: number, occasion: string | undefined, extraAvoid: string[] = []): VariationProfile {
+  const recent = recentMoves.get(bucketKey(occasion)) ?? [];
+  const avoid = new Set([...recent, ...extraAvoid]);
+  const available = KNOWN_MOVES.filter((m) => !avoid.has(m));
+  const movePool = available.length ? available : KNOWN_MOVES;
+  return {
+    move: pickFrom(movePool, seed, 3),
+    alignment: pickFrom(ALIGNMENTS, seed, 5),
+    anchor: pickFrom(ANCHORS, seed, 7),
+    typePair: pickFrom(TYPE_PAIRS, seed, 11),
+    motion: pickFrom(MOTIONS, seed, 13),
+    density: pickFrom(DENSITIES, seed, 17),
+    messagePlacement: pickFrom(MESSAGE_PLACEMENTS, seed, 19),
+  };
+}
+
+function variationBrief(profile: VariationProfile, occasion: string | undefined) {
+  const recent = recentMoves.get(bucketKey(occasion)) ?? [];
+  const signatures = recentSignatures.get(bucketKey(occasion)) ?? [];
+  return [
+    "FORCED VARIATION PROFILE — obey these constraints exactly:",
+    `- First line must be exactly: // MOVE: ${profile.move}`,
+    `- Composition / alignment: ${profile.alignment}`,
+    `- Visual anchor: ${profile.anchor}`,
+    `- Type pairing: ${profile.typePair}`,
+    `- Motion motif: ${profile.motion}`,
+    `- Density: ${profile.density}`,
+    `- Message placement: ${profile.messagePlacement}`,
+    recent.length ? `- Recently used moves to avoid: ${recent.join(", ")}` : null,
+    signatures.length ? `- Recent layout signatures to avoid: ${signatures.join(" | ")}` : null,
+    "This card must look visibly different from recent cards for the same occasion.",
+  ].filter(Boolean).join("\n");
+}
 
 function bucketKey(occasion?: string) {
   return (occasion ?? "any").toLowerCase().trim();
@@ -242,6 +357,29 @@ function extractMove(source: string): string | null {
   const line1 = source.split("\n", 1)[0] ?? "";
   const m = line1.match(/\/\/\s*MOVE:\s*([a-z0-9-]+)/i);
   return m ? m[1].toLowerCase() : null;
+}
+
+function detectLayoutSignature(source: string): string {
+  const s = source.toLowerCase();
+  const move = extractMove(source) ?? "unknown";
+  const centered = /alignitems\s*:\s*['"]center['"]/i.test(source) || /textalign\s*:\s*['"]center['"]/i.test(source);
+  const split = /(width\s*:\s*['"](?:4[5-9]|5\d|6\d)%|gridtemplatecolumns|60\/40|50\/50)/i.test(source);
+  const diagonal = /(rotate\(|skew|diagonal|clip-path|polygon)/i.test(source);
+  const edgeType = /(14vw|12vw|full-bleed|edge-to-edge|lineheight\s*:\s*0\.9)/i.test(source);
+  const bottomMessage = /(bottom\s*:\s*['"](?:4|5|6|7|8|9|10)%|footer|caption block)/i.test(source);
+  const sideMessage = /(right\s*:\s*['"](?:4|5|6|7|8|9|10)%|left\s*:\s*['"](?:4|5|6|7|8|9|10)%)/i.test(source) && /maxwidth/i.test(source);
+  const circles = (source.match(/createElementNS\([^)]*,\s*['"]circle['"]\)/g) ?? []).length;
+  const paths = (source.match(/createElementNS\([^)]*,\s*['"]path['"]\)/g) ?? []).length;
+  const rects = (source.match(/createElementNS\([^)]*,\s*['"]rect['"]\)/g) ?? []).length;
+  const canvas = /canvas|getcontext\(['"]2d['"]\)/i.test(source);
+  const font = s.includes("cormorant") ? "cormorant"
+    : s.includes("instrument serif") ? "instrument"
+      : s.includes("fraunces") ? "fraunces"
+        : s.includes("georgia") ? "georgia" : "system";
+  const layout = diagonal ? "diagonal" : split ? "split" : edgeType ? "edge-type" : centered ? "centered" : "asym";
+  const message = bottomMessage ? "msg-bottom" : sideMessage ? "msg-side" : "msg-other";
+  const motif = canvas ? "canvas" : circles >= 4 ? "circles" : paths >= 2 ? "paths" : rects >= 3 ? "rects" : "dom";
+  return `${move}/${layout}/${message}/${font}/${motif}`;
 }
 
 function detectAntiPatterns(source: string): string[] {
@@ -263,20 +401,29 @@ function detectAntiPatterns(source: string): string[] {
   return issues;
 }
 
-function selfCheck(source: string, occasion: string | undefined): { ok: boolean; move: string | null; issues: string[]; repeats: boolean; recent: string[] } {
+function selfCheck(source: string, occasion: string | undefined, profile?: VariationProfile): { ok: boolean; move: string | null; signature: string; issues: string[]; repeats: boolean; signatureRepeats: boolean; recent: string[] } {
   const move = extractMove(source);
   const issues = detectAntiPatterns(source);
+  if (move && profile && move !== profile.move) {
+    issues.push(`used design move "${move}" but required "${profile.move}"`);
+  }
   const recent = recentMoves.get(bucketKey(occasion)) ?? [];
+  const recentSigs = recentSignatures.get(bucketKey(occasion)) ?? [];
+  const signature = detectLayoutSignature(source);
   const repeats = !!move && recent.includes(move);
-  return { ok: issues.length === 0 && !repeats, move, issues, repeats, recent };
+  const signatureRepeats = recentSigs.includes(signature);
+  return { ok: issues.length === 0 && !repeats && !signatureRepeats, move, signature, issues, repeats, signatureRepeats, recent };
 }
 
-function recordMove(occasion: string | undefined, move: string | null) {
-  if (!move) return;
+function recordDesign(occasion: string | undefined, move: string | null, signature: string) {
   const key = bucketKey(occasion);
-  const list = recentMoves.get(key) ?? [];
-  const next = [move, ...list.filter((m) => m !== move)].slice(0, RECENT_LIMIT);
-  recentMoves.set(key, next);
+  if (move) {
+    const list = recentMoves.get(key) ?? [];
+    const next = [move, ...list.filter((m) => m !== move)].slice(0, RECENT_LIMIT);
+    recentMoves.set(key, next);
+  }
+  const sigs = recentSignatures.get(key) ?? [];
+  recentSignatures.set(key, [signature, ...sigs.filter((s) => s !== signature)].slice(0, RECENT_LIMIT));
 }
 
 async function generateWithSelfCheck(
@@ -284,37 +431,38 @@ async function generateWithSelfCheck(
   system: string,
   userPrompt: string,
   occasion: string | undefined,
+  seed: number,
 ): Promise<string> {
-  const recent = recentMoves.get(bucketKey(occasion)) ?? [];
-  const avoidLine = recent.length
-    ? `\nRECENTLY USED MOVES (avoid — pick a DIFFERENT one from the taxonomy): ${recent.join(", ")}`
-    : "";
-  const firstPrompt = userPrompt + avoidLine;
+  const firstProfile = buildVariationProfile(seed, occasion);
+  const firstPrompt = [userPrompt, "", variationBrief(firstProfile, occasion)].join("\n");
 
   const first = stripFences(await callChat(model, system, firstPrompt));
-  const check = selfCheck(first, occasion);
+  const check = selfCheck(first, occasion, firstProfile);
   if (check.ok) {
-    recordMove(occasion, check.move);
+    recordDesign(occasion, check.move, check.signature);
     return first;
   }
 
   // Retry once with explicit forced-variety directive.
   const forbid = Array.from(new Set([...(check.recent), ...(check.move ? [check.move] : [])]));
-  const remaining = KNOWN_MOVES.filter((m) => !forbid.includes(m));
+  const retryProfile = buildVariationProfile(seed + 7919, occasion, forbid);
   const retryPrompt = [
-    firstPrompt,
+    userPrompt,
+    "",
+    variationBrief(retryProfile, occasion),
     "",
     "SELF-CHECK FAILED on your previous attempt:",
     ...check.issues.map((i) => `- ${i}`),
     check.repeats && check.move ? `- design move "${check.move}" was used recently; do NOT reuse it` : null,
+    check.signatureRepeats ? `- layout signature "${check.signature}" was used recently; change layout, typography, and message placement` : null,
     "",
-    `Rewrite from scratch. You MUST pick a design move from this shortlist and name it in the // MOVE: comment on line 1: ${remaining.slice(0, 8).join(", ")}.`,
+    `Rewrite from scratch. You MUST use this exact first line: // MOVE: ${retryProfile.move}`,
     "Do NOT use a centered flex column. Do NOT dump background particles/circles. Commit to a distinct compositional anchor.",
   ].filter(Boolean).join("\n");
 
   const second = stripFences(await callChat(model, system, retryPrompt));
-  const check2 = selfCheck(second, occasion);
-  recordMove(occasion, check2.move ?? check.move);
+  const check2 = selfCheck(second, occasion, retryProfile);
+  recordDesign(occasion, check2.move ?? check.move, check2.signature);
   return second;
 }
 
@@ -422,7 +570,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `SENDER'S EDIT REQUEST: ${instruction}`,
       ].join("\n");
 
-      const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion);
+      const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion, seed);
       return {
         template: "ai",
         palette,
@@ -502,7 +650,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
     ].join("\n");
 
-    const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion);
+      const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion, seed);
     return {
       template: "ai",
       palette,
