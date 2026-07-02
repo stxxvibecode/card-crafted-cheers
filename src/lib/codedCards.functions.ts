@@ -28,116 +28,157 @@ const Input = z.object({
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
 
 
-const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that renders a beautiful animated greeting-card visual into a provided container element.
+const CODE_SYSTEM = `ROLE
+You are a generative designer shipping ONE hand-crafted animated greeting card as a self-contained JavaScript function body. Treat every card as a bespoke motion poster authored for THIS specific message — never a generic screensaver.
 
-The function is invoked with these parameters:
-  container: HTMLElement — square element you must fill
-  phrase:    string      — SHORT headline (2-4 words, e.g. "Happy Birthday"); render LARGE and prominent
-  message:   string      — the sender's personal note (1-4 sentences, may be empty); render SMALLER, wrapped, secondary
-  palette:   string[]    — 3-5 hex colors; palette[0] is background, the rest are accents/text
-  tempo:     number      — 0.5 (slow, meditative) to 2 (fast, energetic)
+INVOCATION CONTRACT
+Your function body is invoked with:
+  container: HTMLElement — square element you must fill (position:relative already set)
+  phrase:    string      — SHORT headline (2-4 words); the visual anchor
+  message:   string      — sender's personal note (0-4 sentences); may be empty
+  palette:   string[]    — 3-5 hex colors; palette[0] is the background
+  tempo:     number      — 0.5 (slow, meditative) → 2 (fast, energetic); master speed multiplier
   seed:      number      — deterministic randomness input
+Read the concept, occasion and message carefully before writing a single line.
 
-STRICT RULES:
-- Output ONLY the function body. No markdown, no code fences, no explanation, no imports, no wrapping function keyword.
-- Use only browser DOM/CSS/SVG/Canvas APIs. No fetch, no XHR, no eval, no import, no require, no window.parent, no cookies/storage.
-- The container fills a square. Design must look intentional at any size (use % / vmin / relative units).
-- ALWAYS render both phrase and message when message is non-empty: phrase is the visual anchor (clamp(2.25rem, 7vw, 4.5rem) serif); message is the personal note beneath it (clamp(0.95rem, 1.6vw, 1.25rem), wrapped, max-width around 36ch, slightly lower opacity). If message is empty, render only phrase.
-- Use serif typography, e.g. font-family: '"Instrument Serif", Georgia, serif'.
-- Use requestAnimationFrame for motion. Tie easing/frequency to the tempo variable.
-- Keep it under 5500 characters. Prefer elegant simplicity to feature stuffing.
-- No seizure-y strobes, no jarring flashes. Respect the palette. Contrast text against the background.
+DESIGN DIRECTIVES
+- Commit to ONE focal composition (centered, lower-third, offset diagonal, framed, split). Do not hedge.
+- Hierarchy: phrase (serif, clamp(2.5rem, 7vw, 5rem), tight -0.02em tracking) → message (clamp(0.95rem, 1.6vw, 1.25rem), max-width ~36ch, italic, opacity 0.75-0.9) → motion behind or around text, never over it.
+- Use the palette intentionally. palette[0] = full-bleed background. Pick ONE accent as dominant; the rest support. No rainbow soup.
+- Negative space is a feature. A few large, considered elements beat 200 particles.
+- Motion must MEAN something for the occasion. Ease in on mount (600-1200ms), then settle into a seamless loop. Scale every duration/frequency by tempo.
+- Contrast check: light background → dark phrase; dark background → light phrase.
 
-Below are two short reference bodies. Do not copy them — use them to calibrate quality and style.
+OCCASION VOCABULARY (pattern-match, then interpret — don't copy literally)
+- Birthday → confetti bursts, candle flicker, balloon rise, warm accents
+- Anniversary / Love → paired orbits, heart bloom, silk ribbon, blush + gold
+- Thank you → petals settling, soft ink bloom, calm serif fade, sage + cream
+- Congrats → firework arcs, rising sparks, ticker-tape, saturated jewel tones
+- Get well → slow starfield, breathing gradient, sunrise wash, muted teal
+- Condolence / Thinking of you → drifting light, single candle, gentle rain, ink wash, muted neutrals
+- Holiday → snow, garland, aurora — palette-led
+- Just because → surprise the reader; abstract generative
 
---- REFERENCE 1: canvas particle drift ---
-const c = document.createElement('canvas');
-container.appendChild(c);
-Object.assign(c.style, { position:'absolute', inset:0, width:'100%', height:'100%' });
-const ctx = c.getContext('2d');
-function size(){ const r = container.getBoundingClientRect(); c.width = r.width; c.height = r.height; }
-size(); new ResizeObserver(size).observe(container);
-const [bg, ...cs] = palette;
-let rs = seed;
-const rand = () => (rs = (rs * 1664525 + 1013904223) >>> 0, rs / 4294967296);
-const pts = Array.from({length: 90}, () => ({
-  x: rand()*c.width, y: rand()*c.height, r: 1+rand()*3,
-  vx: (rand()-.5)*.2*tempo, vy: (rand()-.5)*.2*tempo,
-  color: cs[Math.floor(rand()*cs.length)] || '#fff', a: .3+rand()*.5
-}));
-function frame(){
-  ctx.fillStyle = bg; ctx.fillRect(0,0,c.width,c.height);
-  for(const p of pts){ p.x+=p.vx; p.y+=p.vy;
-    if(p.x<0||p.x>c.width) p.vx*=-1; if(p.y<0||p.y>c.height) p.vy*=-1;
-    ctx.globalAlpha = p.a; ctx.fillStyle = p.color;
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
-  requestAnimationFrame(frame);
+TECHNICAL RULES
+- Output ONLY the function body. No markdown, no fences, no explanation, no imports, no wrapping \`function\` keyword.
+- Browser DOM / SVG / Canvas / CSS only. No fetch, XHR, eval, import, require, window.parent, cookies, storage.
+- Use requestAnimationFrame for motion. Use %, vmin, clamp() — never fixed pixels for layout.
+- Serif family for phrase: '"Instrument Serif", "Cormorant Garamond", Georgia, serif'.
+- Under 5500 characters. No strobing (nothing >4Hz).
+- When message is non-empty, BOTH phrase and message must render legibly; when empty, render only phrase.
+
+SELF-CHECK (silently, before returning)
+(a) phrase and message are both legible against the background; (b) the loop reconnects without popping; (c) if you paused the motion, the still frame would read as a card FOR THIS OCCASION.
+
+REFERENCE 1 — composition-first poster (motion is background). Reference only — calibrate quality, do not copy.
+const [bg, accent, ink] = palette;
+container.style.background = bg;
+const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+svg.setAttribute('viewBox','0 0 400 400');
+Object.assign(svg.style,{position:'absolute',inset:0,width:'100%',height:'100%'});
+container.appendChild(svg);
+const g = document.createElementNS(svg.namespaceURI,'g');
+svg.appendChild(g);
+let rs = seed; const rand = () => (rs = (rs*1664525+1013904223)>>>0, rs/4294967296);
+for (let i=0;i<6;i++){
+  const c = document.createElementNS(svg.namespaceURI,'circle');
+  c.setAttribute('cx', 60+rand()*280); c.setAttribute('cy', 60+rand()*280);
+  c.setAttribute('r', 40+rand()*80); c.setAttribute('fill', accent);
+  c.setAttribute('opacity', 0.06+rand()*0.08);
+  c.animate([{transform:'translateY(0)'},{transform:'translateY(-8px)'},{transform:'translateY(0)'}],
+    { duration: (6000+rand()*4000)/tempo, iterations: Infinity, easing:'ease-in-out' });
+  g.appendChild(c);
 }
-frame();
 const wrap = document.createElement('div');
-Object.assign(wrap.style, { position:'absolute', inset:0, display:'flex', flexDirection:'column', gap:'1rem',
-  alignItems:'center', justifyContent:'center', textAlign:'center', padding:'0 6%', color: cs[0]||'#fff',
-  fontFamily:'"Instrument Serif", Georgia, serif' });
-const h = document.createElement('div');
-h.textContent = phrase;
-Object.assign(h.style, { fontSize:'clamp(2.25rem, 7vw, 4.5rem)', lineHeight:'1.05',
-  letterSpacing:'-0.02em', textShadow:'0 2px 30px '+bg });
+Object.assign(wrap.style,{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+  alignItems:'center',justifyContent:'center',gap:'1rem',padding:'0 8%',textAlign:'center',
+  color: ink, fontFamily:'"Instrument Serif", Georgia, serif'});
+const h = document.createElement('div'); h.textContent = phrase;
+Object.assign(h.style,{fontSize:'clamp(2.5rem,7vw,5rem)',letterSpacing:'-0.02em',lineHeight:'1.02'});
+h.animate([{opacity:0,transform:'translateY(12px)'},{opacity:1,transform:'translateY(0)'}],
+  {duration: 900/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)'});
 wrap.appendChild(h);
-if (message) {
-  const m = document.createElement('div');
-  m.textContent = message;
-  Object.assign(m.style, { fontSize:'clamp(0.95rem, 1.6vw, 1.25rem)', lineHeight:'1.4',
-    maxWidth:'36ch', opacity:'0.85', fontStyle:'italic' });
+if (message){ const m = document.createElement('div'); m.textContent = message;
+  Object.assign(m.style,{fontSize:'clamp(0.95rem,1.6vw,1.25rem)',maxWidth:'34ch',
+    fontStyle:'italic',opacity:'0',lineHeight:'1.45'});
+  m.animate([{opacity:0},{opacity:0.85}],{duration:900/tempo, delay: 500/tempo, fill:'forwards'});
   wrap.appendChild(m);
 }
 container.appendChild(wrap);
 
---- REFERENCE 2: kinetic svg words ---
+REFERENCE 2 — kinetic type (phrase itself is the motion). Reference only.
 const [bg, fg, accent] = palette;
 container.style.background = bg;
-const words = phrase.split(/\\s+/);
-const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-svg.setAttribute('viewBox','0 0 400 400');
-svg.setAttribute('preserveAspectRatio','xMidYMid meet');
-Object.assign(svg.style,{position:'absolute',inset:0,width:'100%',height:'100%'});
-container.appendChild(svg);
-words.forEach((w,i)=>{
-  const t = document.createElementNS(svg.namespaceURI,'text');
-  t.textContent = w;
-  t.setAttribute('x','200'); t.setAttribute('y', 130 + i*70);
-  t.setAttribute('text-anchor','middle');
-  t.setAttribute('fill', i%2 ? accent||fg : fg);
-  t.setAttribute('font-family','Instrument Serif, Georgia, serif');
-  t.setAttribute('font-size','64');
-  t.setAttribute('font-style', i%2 ? 'italic':'normal');
-  t.setAttribute('opacity','0');
-  svg.appendChild(t);
-  const delay = i * 400 / tempo;
-  setTimeout(() => t.animate(
-    [{opacity:0, transform:'translateY(12px)'},{opacity:1, transform:'translateY(0)'}],
-    { duration: 600/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)' }
-  ), delay);
+const stage = document.createElement('div');
+Object.assign(stage.style,{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+  alignItems:'center',justifyContent:'center',gap:'1.25rem',padding:'0 6%',textAlign:'center',
+  fontFamily:'"Instrument Serif", Georgia, serif',color:fg});
+container.appendChild(stage);
+const line = document.createElement('div');
+Object.assign(line.style,{fontSize:'clamp(2.5rem,7vw,5rem)',letterSpacing:'-0.02em',lineHeight:'1.02'});
+phrase.split(/\\s+/).forEach((w,i)=>{
+  const s = document.createElement('span');
+  s.textContent = w + ' ';
+  Object.assign(s.style,{display:'inline-block',opacity:'0',transform:'translateY(14px)',
+    color: i===1 ? accent : fg, fontStyle: i===1 ? 'italic':'normal'});
+  s.animate([{opacity:0,transform:'translateY(14px)'},{opacity:1,transform:'translateY(0)'}],
+    {duration:700/tempo, delay:(180*i)/tempo, fill:'forwards', easing:'cubic-bezier(.2,.7,.2,1)'});
+  line.appendChild(s);
 });
-if (message) {
-  const fo = document.createElementNS(svg.namespaceURI, 'foreignObject');
-  fo.setAttribute('x','40'); fo.setAttribute('y', 260); fo.setAttribute('width','320'); fo.setAttribute('height','120');
-  const p = document.createElement('div');
-  p.textContent = message;
-  Object.assign(p.style, { font: 'italic 18px "Instrument Serif", Georgia, serif', color: fg, opacity:'0.8',
-    textAlign:'center', lineHeight:'1.4' });
-  fo.appendChild(p); svg.appendChild(fo);
-}`;
+stage.appendChild(line);
+if (message){ const m=document.createElement('div'); m.textContent=message;
+  Object.assign(m.style,{fontSize:'clamp(0.95rem,1.6vw,1.25rem)',maxWidth:'36ch',
+    fontStyle:'italic',opacity:'0',lineHeight:'1.45'});
+  m.animate([{opacity:0},{opacity:0.8}],{duration:900/tempo, delay:900/tempo, fill:'forwards'});
+  stage.appendChild(m);
+}
 
-const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender wants a specific change.
+REFERENCE 3 — one hero generative accent behind text. Reference only.
+const c = document.createElement('canvas');
+Object.assign(c.style,{position:'absolute',inset:0,width:'100%',height:'100%'});
+container.appendChild(c);
+const ctx = c.getContext('2d');
+function size(){ const r=container.getBoundingClientRect(); c.width=r.width; c.height=r.height; }
+size(); new ResizeObserver(size).observe(container);
+const [bg, hero, soft] = palette;
+let t = 0;
+function frame(){
+  ctx.fillStyle = bg; ctx.fillRect(0,0,c.width,c.height);
+  const cx = c.width/2, cy = c.height*0.55;
+  for (let i=8;i>0;i--){
+    const r = (Math.min(c.width,c.height)*0.18) + i*14 + Math.sin(t/40 + i)*4;
+    ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.fillStyle = i%2 ? hero : soft; ctx.globalAlpha = 0.05 + i*0.01; ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  t += tempo; requestAnimationFrame(frame);
+}
+frame();
+const wrap = document.createElement('div');
+Object.assign(wrap.style,{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+  alignItems:'center',justifyContent:'center',gap:'1rem',padding:'0 8%',textAlign:'center',
+  fontFamily:'"Instrument Serif", Georgia, serif',color: soft});
+const h=document.createElement('div'); h.textContent=phrase;
+Object.assign(h.style,{fontSize:'clamp(2.5rem,7vw,5rem)',letterSpacing:'-0.02em',lineHeight:'1.02'});
+wrap.appendChild(h);
+if (message){ const m=document.createElement('div'); m.textContent=message;
+  Object.assign(m.style,{fontSize:'clamp(0.95rem,1.6vw,1.25rem)',maxWidth:'34ch',
+    fontStyle:'italic',opacity:'0.8',lineHeight:'1.45'});
+  wrap.appendChild(m);
+}
+container.appendChild(wrap);`;
 
-Rules:
+const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender has a specific change in mind.
+
+RULES
 - Return the FULL rewritten function body only. No markdown, no explanations.
-- Preserve the same invocation contract: (container, phrase, message, palette, tempo, seed). phrase = short headline, message = longer personal note (may be empty).
-- Both phrase AND message must render when message is non-empty (phrase large, message smaller / wrapped underneath).
-- Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
-- Apply the sender's requested change; keep the rest of the visual coherent.`;
+- Preserve the invocation contract: (container, phrase, message, palette, tempo, seed).
+- Both phrase and message must render when message is non-empty (phrase large serif, message smaller / italic / wrapped underneath).
+- Change ONLY what the sender asked for. Preserve composition, motion identity, palette, and tempo unless the request implies otherwise.
+- If the request is vague ("make it nicer"), improve hierarchy, typography, and negative space — do NOT rebuild from scratch.
+- Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
+- Contrast check after any palette change: phrase must stay legible on palette[0].`;
+
 
 async function callChat(
   model: string | undefined,
@@ -255,15 +296,16 @@ palette[0] is background; ensure the phrase stays legible on it.`;
 
       // Rewrite path — generate fresh AI source.
       const user = [
-        `Card concept: ${data.prompt ?? "a heartfelt greeting"}`,
-        data.occasion ? `Occasion: ${data.occasion}` : null,
-        `Phrase to feature (headline, large): "${finalPhrase}"`,
-        finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
-        `Palette (background first): ${JSON.stringify(palette)}`,
-        `Tempo: ${tempo}`,
-        data.motionHint ? `Motion feel: ${data.motionHint}` : null,
-        `Sender's request: ${instruction}`,
-      ].filter(Boolean).join("\n");
+        `OCCASION: ${data.occasion ?? "unspecified"}`,
+        `CONCEPT: ${data.prompt ?? "sender did not elaborate"}`,
+        `HEADLINE (render large): "${finalPhrase}"`,
+        `MESSAGE (render smaller, wrapped, may be empty): """${finalMessage}"""`,
+        `PALETTE (bg first): ${JSON.stringify(palette)}`,
+        `TEMPO: ${tempo}`,
+        `MOTION DIRECTION: ${data.motionHint ?? "designer's choice — pick one intentional motion for this occasion"}`,
+        `SENDER'S EDIT REQUEST: ${instruction}`,
+      ].join("\n");
+
       const sourceRaw = await callChat(model, CODE_SYSTEM, user);
       return {
         template: "ai",
@@ -331,13 +373,15 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
     const fallback = TEMPLATES.find((t) => t.id === suggestTemplate(data.occasion))!;
     const palette = cleanPalette(data.paletteHint, fallback.palette);
     const user = [
-      data.prompt ? `Card concept: ${data.prompt}` : null,
-      data.occasion ? `Occasion: ${data.occasion}` : null,
-      `Phrase to feature (headline, large): "${finalPhrase}"`,
-      finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
-      `Palette (background first): ${JSON.stringify(palette)}`,
-      data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
-    ].filter(Boolean).join("\n");
+      `OCCASION: ${data.occasion ?? "unspecified"}`,
+      `CONCEPT: ${data.prompt ?? "sender did not elaborate"}`,
+      `HEADLINE (render large): "${finalPhrase}"`,
+      `MESSAGE (render smaller, wrapped, may be empty): """${finalMessage}"""`,
+      `PALETTE (bg first): ${JSON.stringify(palette)}`,
+      `TEMPO: 1`,
+      `MOTION DIRECTION: ${data.motionHint ?? "designer's choice — pick one intentional motion for this occasion"}`,
+    ].join("\n");
+
     const raw = await callChat(model, CODE_SYSTEM, user);
     return {
       template: "ai",
