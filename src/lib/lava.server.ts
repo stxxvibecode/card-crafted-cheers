@@ -52,6 +52,7 @@ export async function lavaChat(
   const body: Record<string, unknown> = {
     model: resolvedModel,
     messages: safeMessages,
+    max_tokens: opts.maxTokens ?? 8192,
   };
   if (opts.json && !forbidsJsonMode) body.response_format = { type: "json_object" };
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
@@ -73,8 +74,21 @@ export async function lavaChat(
     if (res.status === 404) throw new Error(`Lava: model "${body.model}" not available. Pick another in the model picker.`);
     throw new Error(`Lava ${res.status}: ${text.slice(0, 300) || res.statusText}`);
   }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  const content = json.choices?.[0]?.message?.content?.trim();
-  if (!content) throw new Error("Lava returned an empty response.");
+  const json = (await res.json()) as {
+    choices?: Array<{ message?: { content?: string }; finish_reason?: string }>;
+  };
+  const choice = json.choices?.[0];
+  const content = choice?.message?.content?.trim();
+  if (!content) {
+    const reason = choice?.finish_reason;
+    if (reason === "length" || reason === "max_tokens") {
+      throw new Error(`Lava: "${resolvedModel}" hit its output cap before writing anything. Try a different model in the picker.`);
+    }
+    if (reason === "content_filter" || reason === "safety") {
+      throw new Error(`Lava: "${resolvedModel}" refused this prompt (safety filter). Try rephrasing or switch model.`);
+    }
+    throw new Error(`Lava: "${resolvedModel}" returned an empty response${reason ? ` (finish_reason: ${reason})` : ""}. Try another model.`);
+  }
   return content;
 }
+
