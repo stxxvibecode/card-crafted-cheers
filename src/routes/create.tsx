@@ -369,7 +369,9 @@ function Create() {
         prompt: p, occasion: draft.occasion,
         recipientName: draft.recipientName || undefined,
         senderName: draft.senderName || undefined,
+        model: prefsRef.current.chat,
       }});
+
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code" && draftRef.current.codeSpec) {
         void regenerateCode({ mode: "edit", message: r.message, instruction: "Refresh with the updated message." });
