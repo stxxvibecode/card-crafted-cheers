@@ -835,6 +835,7 @@ function ChatPanel({
                   <Code2 className="h-3 w-3" /> Code
                 </button>
               </div>
+              <ModelPicker />
               <select
                 value={actionMode}
                 onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
@@ -844,6 +845,7 @@ function ChatPanel({
                 <option value="plan">Plan</option>
                 <option value="build">Build</option>
               </select>
+
             </div>
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}
