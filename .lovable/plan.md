@@ -1,14 +1,28 @@
-## Problem
-In `/create`, the composer footer packs the medium toggle (Art/Code), ModelPicker, and Plan/Build dropdown into one row alongside the submit button. On mid-width viewports the row overflows and the submit (send) button gets clipped at the right edge — matching the annotation.
+Move the Art / Code medium pill from the composer footer to the top header row of the chat panel, next to the Chat/Editor toggle.
 
-## Fix (frontend-only, `src/routes/create.tsx`, PromptInputFooter around L816–857)
+### Scope
+- Single file: `src/routes/create.tsx`.
+- No backend, AI, or route changes.
 
-1. Make the footer wrap gracefully:
-   - Change `PromptInputFooter` classes to `flex-wrap justify-between gap-2` and add `w-full` on the left control group so it can wrap to its own row when space is tight.
-   - Add `shrink-0` to `PromptInputSubmit` so it's never squeezed/clipped.
-2. Tighten the left group so it fits on one row at typical widths:
-   - Add `flex-wrap` to the left control container.
-   - Truncate the ModelPicker label (already ellipsizes at ~12ch) and give the Plan/Build `<select>` a `min-w-0`.
-3. Verify with Playwright at 1177px (current viewport) that Send is fully visible and clickable, and re-check at 768px that controls wrap cleanly without clipping.
+### Changes
+1. **Relocate the pill**
+   - Move the Art/Code segmented control from the `PromptInputFooter` up to the chat panel's header row.
+   - It will sit alongside the Pigeon logo/identity and the existing Chat/Editor toggle.
 
-No backend or logic changes.
+2. **Clean up the footer**
+   - Keep the ModelPicker and Plan/Build dropdown in the footer.
+   - Remove the pill from the footer layout.
+
+3. **Preserve the "pick medium first" cue**
+   - When a user arrives with a prefilled prompt but no medium selected yet, the pill at the top should still receive the focus/attention pulse.
+
+4. **Remove the redundant footer hint**
+   - The "Choose Art or Code, then hit Build" text above the footer is no longer needed because the pill will be visible at the top.
+
+5. **Editor panel stays unchanged**
+   - The Editor panel already has its own Medium picker; leave it as-is.
+
+### Verification
+- Check that the pill is visible and aligned in the chat panel header at the current 1177px viewport.
+- Confirm the footer no longer overflows and the Send button remains fully visible.
+- Quick visual check at ~768px to ensure the header wraps gracefully if space is tight.
