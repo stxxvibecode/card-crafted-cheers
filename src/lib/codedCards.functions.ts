@@ -296,15 +296,16 @@ palette[0] is background; ensure the phrase stays legible on it.`;
 
       // Rewrite path — generate fresh AI source.
       const user = [
-        `Card concept: ${data.prompt ?? "a heartfelt greeting"}`,
-        data.occasion ? `Occasion: ${data.occasion}` : null,
-        `Phrase to feature (headline, large): "${finalPhrase}"`,
-        finalMessage ? `Message to include (personal note, secondary): """${finalMessage}"""` : null,
-        `Palette (background first): ${JSON.stringify(palette)}`,
-        `Tempo: ${tempo}`,
-        data.motionHint ? `Motion feel: ${data.motionHint}` : null,
-        `Sender's request: ${instruction}`,
-      ].filter(Boolean).join("\n");
+        `OCCASION: ${data.occasion ?? "unspecified"}`,
+        `CONCEPT: ${data.prompt ?? "sender did not elaborate"}`,
+        `HEADLINE (render large): "${finalPhrase}"`,
+        `MESSAGE (render smaller, wrapped, may be empty): """${finalMessage}"""`,
+        `PALETTE (bg first): ${JSON.stringify(palette)}`,
+        `TEMPO: ${tempo}`,
+        `MOTION DIRECTION: ${data.motionHint ?? "designer's choice — pick one intentional motion for this occasion"}`,
+        `SENDER'S EDIT REQUEST: ${instruction}`,
+      ].join("\n");
+
       const sourceRaw = await callChat(model, CODE_SYSTEM, user);
       return {
         template: "ai",
