@@ -213,7 +213,9 @@ function Create() {
             senderName: currentDraft.senderName || undefined,
             medium: currentDraft.medium,
           },
+          model: prefsRef.current.chat,
         },
+
       });
 
       const u = res.updates;
