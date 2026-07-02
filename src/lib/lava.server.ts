@@ -23,9 +23,25 @@ export async function lavaChat(
   opts: ChatOpts = {},
 ): Promise<string> {
   const key = lavaKey();
+
+  // Defensive: some providers (Anthropic, some OpenAI variants) reject
+  // conversations that end with an assistant turn ("assistant prefill").
+  // Trim trailing assistant messages so the last turn is always user.
+  // System messages at the head are fine and are preserved.
+  const safeMessages = [...messages];
+  while (
+    safeMessages.length &&
+    safeMessages[safeMessages.length - 1].role === "assistant"
+  ) {
+    safeMessages.pop();
+  }
+  if (!safeMessages.some((m) => m.role === "user")) {
+    safeMessages.push({ role: "user", content: "Continue." });
+  }
+
   const body: Record<string, unknown> = {
     model: model?.trim() || DEFAULT_CHAT_MODEL,
-    messages,
+    messages: safeMessages,
   };
   if (opts.json) body.response_format = { type: "json_object" };
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
