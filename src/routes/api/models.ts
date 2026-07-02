@@ -58,13 +58,16 @@ export const Route = createFileRoute("/api/models")({
         const image: Categorised[] = [];
         for (const m of list) {
           if (!m?.id) continue;
+          const bucket = categorise(m.id);
+          if (!bucket) continue;
           const entry: Categorised = {
             id: m.id,
             owned_by: m.owned_by || "other",
-            bucket: categorise(m.id),
+            bucket,
           };
-          (entry.bucket === "image" ? image : chat).push(entry);
+          (bucket === "image" ? image : chat).push(entry);
         }
+
         // Sort within each bucket by provider then id.
         const sort = (a: Categorised, b: Categorised) =>
           a.owned_by.localeCompare(b.owned_by) || a.id.localeCompare(b.id);
