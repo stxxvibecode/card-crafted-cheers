@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { safeSnippetOrFallback } from "./sanitize";
 
 // Runs untrusted AI-authored JS inside a sandboxed iframe.
 // The snippet is a function body that receives:
@@ -33,16 +34,8 @@ export function AISnippet({
   );
 }
 
-const FORBIDDEN = /\b(import|require|fetch|XMLHttpRequest|window\.parent|top\.|document\.cookie|localStorage|indexedDB|navigator\.sendBeacon|<script)\b/i;
-
-function sanitize(src: string): string {
-  if (src.length > 12_000) return `container.innerText = 'Snippet too large';`;
-  if (FORBIDDEN.test(src)) return `container.innerText = 'Snippet rejected';`;
-  return src;
-}
-
 function buildSrcDoc(source: string, phrase: string, message: string, palette: string[], tempo: number, seed: number): string {
-  const safe = sanitize(source);
+  const safe = safeSnippetOrFallback(source);
   const bg = palette[0] ?? "#000";
   const data = JSON.stringify({ phrase, message, palette, tempo, seed });
   return `<!doctype html><html><head><meta charset="utf-8"><style>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Confetti } from "./templates/Confetti";
 import { Fireworks } from "./templates/Fireworks";
 import { KineticSerif } from "./templates/KineticSerif";
@@ -5,9 +6,37 @@ import { Hearts } from "./templates/Hearts";
 import { Starfield } from "./templates/Starfield";
 import { Ribbons } from "./templates/Ribbons";
 import { AISnippet } from "./AISnippet";
+import { OpeningGate } from "./OpeningGate";
 import type { CodeSpec } from "./registry";
 
-export function CodedCard({ spec }: { spec: CodeSpec }) {
+export function CodedCard({
+  spec,
+  awaitTap = false,
+  recipientName,
+}: {
+  spec: CodeSpec;
+  /** When true, show the tap-to-open gate before playing the animation. */
+  awaitTap?: boolean;
+  recipientName?: string | null;
+}) {
+  const [opened, setOpened] = useState(!awaitTap);
+
+  // Reset the gate whenever the spec identity changes (e.g. share pages
+  // that hot-swap between cards in preview).
+  useEffect(() => {
+    setOpened(!awaitTap);
+  }, [spec.seed, spec.template, awaitTap]);
+
+  if (awaitTap && !opened) {
+    return (
+      <OpeningGate
+        palette={spec.palette}
+        recipientName={recipientName}
+        onOpen={() => setOpened(true)}
+      />
+    );
+  }
+
   const props = {
     phrase: spec.phrase,
     message: spec.message ?? "",
