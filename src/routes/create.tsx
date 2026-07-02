@@ -91,6 +91,8 @@ function Create() {
   const { prefs } = useModelPrefs();
   const prefsRef = useRef(prefs);
   useEffect(() => { prefsRef.current = prefs; }, [prefs]);
+  const mediumPickerRef = useRef<HTMLDivElement | null>(null);
+
 
 
   const [draft, setDraft] = useState<Draft>({
