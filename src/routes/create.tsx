@@ -813,12 +813,12 @@ function ChatPanel({
             disabled={busy}
           />
 
-          <PromptInputFooter className="justify-between gap-2">
-            <div className="flex items-center gap-1.5">
+          <PromptInputFooter className="flex-wrap justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <div
                 ref={mediumPickerRef}
                 tabIndex={-1}
-                className={`inline-flex rounded-full border bg-background p-0.5 text-xs outline-none transition ${attention ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
+                className={`inline-flex shrink-0 rounded-full border bg-background p-0.5 text-xs outline-none transition ${attention ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
               >
                 <button
                   type="button"
@@ -839,7 +839,7 @@ function ChatPanel({
               <select
                 value={actionMode}
                 onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
-                className="rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none hover:border-foreground/40"
+                className="min-w-0 shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none hover:border-foreground/40"
                 aria-label="Action mode"
               >
                 <option value="plan">Plan</option>
@@ -848,6 +848,7 @@ function ChatPanel({
 
             </div>
             <PromptInputSubmit
+              className="shrink-0"
               status={busy ? "streaming" : undefined}
               disabled={!canSubmit}
               title={needsMedium ? "Pick Art or Code first" : undefined}
@@ -855,6 +856,7 @@ function ChatPanel({
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
           </PromptInputFooter>
+
         </PromptInput>
       </div>
 
