@@ -478,7 +478,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion.`,
     ].join("\n");
 
-    const raw = await callChat(model, CODE_SYSTEM, user);
+    const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion);
     return {
       template: "ai",
       palette,
@@ -486,6 +486,6 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       message: finalMessage || undefined,
       tempo: 1,
       seed,
-      source: stripFences(raw),
+      source,
     };
   });
