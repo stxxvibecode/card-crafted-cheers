@@ -1,61 +1,53 @@
-# Enhance the coded-card generation prompt
+## Goal
+Rebuild the coded-card generator around your new product spec: think product designer + front-end engineer + motion designer + copywriter. Keep the live-editing function-body contract, add a required tap-to-open opening beat, and add a one-click "Export as HTML" that produces a real standalone `.html` file.
 
-The current `CODE_SYSTEM` prompt in `src/lib/codedCards.functions.ts` gives the model three concrete references that all share the same layout (centered stack, serif headline, subtle background motion). The model pattern-matches those references and returns look-alikes regardless of occasion. We need to force real compositional variety and raise the craft bar.
+## 1. New AI card-builder prompt
+File: `src/lib/codedCards.functions.ts`
 
-## What to change (single file: `src/lib/codedCards.functions.ts`)
+Rewrite `CODE_SYSTEM` and `EDIT_SYSTEM` around your spec, but keep the existing runtime contract `(container, phrase, message, palette, tempo, seed)` so previews, edits, and share URLs keep working.
 
-### 1. Reframe the role
-Rewrite the ROLE section to position the model as a senior motion designer building a one-of-one piece, with an explicit anti-pattern list: "no generic centered serif + drifting particles, no rainbow confetti dump, no default sans stacks, no lorem-ipsum motion."
+New prompt sections:
+- **Role**: product designer + front-end engineer + motion designer + copywriter.
+- **Job**: turn a short user idea into a polished, coded e-card; infer missing details with tasteful defaults; do not over-ask.
+- **Every card includes**: clear occasion, personalized message, strong visual direction, mobile-first layout, meaningful opening beat, lightweight animation, clean semantic DOM, shareable final state (persistent end frame).
+- **Design principles**: personal, modern, emotionally intentional; no generic clichés unless requested; animation for delight not distraction; readability and spacing first; strong emotional payoff on reveal.
+- **Technical rules (adapted to runtime)**: browser-only DOM/SVG/Canvas/CSS; responsive via `%`, `vmin`, `clamp()`; WCAG-legible contrast against `palette[0]`; semantic elements; ≤ 5500 chars; ease into a seamless loop, then land on a legible still frame.
+- **Keep** the existing Design Move taxonomy + anti-pattern clause + seed-driven variation (recent work already there).
 
-### 2. Add a required "design move" taxonomy
-Introduce ~10 named compositional systems the model must pick from and commit to, e.g.:
-- Poster grid (rule-of-thirds anchor, oversized numeral/glyph)
-- Editorial split (left type / right generative field)
-- Wordmark-as-hero (phrase IS the composition, motion inside letters)
-- Cinema letterbox (bars, wide type, single hero motion)
-- Ticker / marquee (kinetic band + still headline)
-- Constellation (sparse points + connective geometry)
-- Ink / watercolor bloom
-- Ribbon / silk sweep
-- Confetti/particle burst (only for celebration occasions, and only if it feels bespoke)
-- Type-only ASCII/monospace grid
+Also update the user-brief the handler assembles so every request passes: OCCASION, PERSONAL MESSAGE, HEADLINE, PALETTE, TEMPO, MOBILE-FIRST reminder, and the tap-to-open note.
 
-Instruct the model to select ONE at random-but-appropriate for the occasion, name it in a comment on line 1, and design to it.
+## 2. Tap-to-open opening beat
+The recipient always sees a "tap to open" gate on the share page; creator preview autoplays so iteration stays fast.
 
-### 3. Add a variation seed rule
-Use the `seed` input to deterministically pick composition, accent choice, direction, and easing. Explicitly forbid always defaulting to centered flex layout.
+- New `src/lib/codedCards/OpeningGate.tsx`: renders a sealed-envelope / wax-seal panel with a large tap target ("Tap to open") and calls `onOpen` on click/keydown. Uses palette accent, `Instrument Serif`, respects `prefers-reduced-motion`.
+- `src/lib/codedCards/CodedCard.tsx`: add `awaitTap?: boolean` prop. When `awaitTap && !opened`, render `<OpeningGate palette={spec.palette} />` above the animation; only mount the template/`AISnippet` after tap. This gives all templates (named + AI) a consistent opening beat without touching each template.
+- `src/routes/card.$id.tsx`: pass `awaitTap` for `medium === "code"`.
+- `src/routes/create.tsx`: leave the editor preview autoplaying (`awaitTap={false}`).
 
-### 4. Raise typography rules
-- Allow (and encourage) mixing serif headline with a mono or geometric-sans supporting label.
-- Encourage numerals, dates, ordinal markers ("№", "vol."), tracked-out small caps, drop caps.
-- Discourage always using Instrument Serif; add fallbacks like Fraunces, Canela-ish "Cormorant Garamond", and system-ui for mono where appropriate.
+## 3. Export as HTML
+Function-body stays the live-edit format; export wraps it into a full self-contained document.
 
-### 5. Replace the three references
-The current references leak into every output. Replace with:
-- ONE minimal skeleton (mount + cleanup + resize pattern only, no styling opinions).
-- A short "anti-examples" list in prose ("do NOT return this shape…") to steer away from the current sameness.
-- 2 short *contrasting* micro-references (≤15 lines each) that use very different layouts (e.g. one editorial split, one wordmark-as-hero) so the model sees range instead of a template.
+- New `src/lib/codedCards/exportHtml.ts`: `buildStandaloneHtml(spec, { recipientName, senderName })` returns a `<!doctype html>` string with:
+  - `<meta viewport>`, title = `A card for {recipient}`, dark-safe background from `palette[0]`.
+  - Inlined CSS: full-viewport `#card`, `@font-face`-free system serif fallback, `prefers-reduced-motion` guard.
+  - Inlined tap-to-open overlay (same copy as `OpeningGate`) that reveals `#card` on click, then executes the animation script — mirrors the recipient experience exactly.
+  - For `template: "ai"`: wraps `spec.source` in `new Function(...)` with the same 6-arg contract, plus the same forbidden-token sanitizer used by `AISnippet`.
+  - For the six built-in templates: embed the raw template source that `registry.ts` already exposes via `?raw`, wrapped in the same runner.
+- New route action on `src/routes/card.$id.tsx`: "Download HTML" button next to the copy-link button. Creates a `Blob([html], { type: "text/html" })`, `URL.createObjectURL`, triggers download as `pigeon-card-{shortId}.html`. Client-only guard (`typeof window`).
+- Also expose the same button on `/create` in the right-rail Code toggle so senders can grab the file mid-iteration.
 
-### 6. Tighten the self-check
-Add explicit checks:
-- "If I swapped the phrase for another occasion's phrase, would this still look bespoke? If yes, redesign."
-- "Am I using more than 60% of the canvas as empty background? Good."
-- "Did I commit to ONE motion idea, or did I hedge with two?"
-
-### 7. Mirror the changes into `EDIT_SYSTEM`
-Same anti-sameness clause, same taxonomy vocabulary, so edits don't regress to the default centered layout.
-
-### 8. Enrich the user brief
-In `generateCodedCard`, extend the user message sent to the model with:
-- A `DESIGN MOVE` slot (blank → model picks; or derived from motionHint)
-- A `VARIATION SEED: <seed>` line
-- A `AVOID` line listing patterns already common ("centered serif with drifting circles behind")
+## 4. Small polish
+- Prompt now explicitly requires the animation to end on a still, legible frame (the "shareable/reusable final state" line).
+- Add a one-line hint under the tap-to-open panel: "For {recipient}" when a name is known.
+- Toast on successful download: "Saved as pigeon-card-{shortId}.html".
 
 ## Out of scope
-- No changes to templates, registry, sandbox, or UI.
-- No new server functions or schema changes.
-- Model selection and Lava plumbing untouched.
+- No backend/DB changes; `code_spec` already carries everything needed for export.
+- No changes to the model-routing (already flowing through the ModelPicker).
+- No changes to art-mode cards.
 
-## Verification
-- Typecheck.
-- Manually generate 3 cards on `/create` in Code mode with different occasions (birthday, thank you, condolence) and confirm the outputs use visibly different compositions rather than the same centered-serif-with-background-motion shape.
+## Technical details
+- The forbidden-token sanitizer lives in `AISnippet.tsx`; extract to `src/lib/codedCards/sanitize.ts` and share with the export helper so the exported HTML enforces the same safety rules.
+- `OpeningGate` and the export overlay share copy + palette logic via a tiny helper (`gateCopy(recipient?)`).
+- Keep bundle small: no new deps.
+- Verify: build passes; open a share URL and confirm the gate appears; click, animation plays; click "Download HTML"; open the downloaded file locally and confirm the gate + animation both work offline.
