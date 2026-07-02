@@ -456,26 +456,51 @@ function Create() {
         <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:h-[calc(100vh-8rem)]">
           {/* Left: Chat / Editor panel */}
           <div className="flex min-h-[600px] flex-col overflow-hidden rounded-2xl border border-border bg-card/60">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
                 <Bird className="h-4 w-4 text-primary" />
                 <span className="font-display text-lg">Pigeon</span>
               </div>
-              <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
-                <button
-                  onClick={() => setMode("chat")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${mode === "chat" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <MessageCircle className="h-3 w-3" /> Chat
-                </button>
-                <button
-                  onClick={() => setMode("editor")}
-                  className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${mode === "editor" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Pencil className="h-3 w-3" /> Editor
-                </button>
+              <div className="flex items-center gap-2">
+                {mode === "chat" && (
+                  <div
+                    ref={mediumPickerRef}
+                    tabIndex={-1}
+                    className={`inline-flex shrink-0 rounded-full border bg-background p-0.5 text-xs outline-none transition ${!draft.medium && !!initialPrompt?.trim() ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => setMedium("art")}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${draft.medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Palette className="h-3 w-3" /> Art
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMedium("code")}
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${draft.medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <Code2 className="h-3 w-3" /> Code
+                    </button>
+                  </div>
+                )}
+                <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-xs">
+                  <button
+                    onClick={() => setMode("chat")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${mode === "chat" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <MessageCircle className="h-3 w-3" /> Chat
+                  </button>
+                  <button
+                    onClick={() => setMode("editor")}
+                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 transition ${mode === "editor" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                  >
+                    <Pencil className="h-3 w-3" /> Editor
+                  </button>
+                </div>
               </div>
             </div>
+
 
             {mode === "chat" ? (
               <ChatPanel
