@@ -39,11 +39,19 @@ export async function lavaChat(
     safeMessages.push({ role: "user", content: "Continue." });
   }
 
+  const resolvedModel = model?.trim() || DEFAULT_CHAT_MODEL;
+
+  // Some providers (Anthropic/Claude, some Gemini variants) reject
+  // response_format: json_object because lava implements it via assistant
+  // prefill, which those models forbid. Detect and skip; the prompt already
+  // instructs JSON-only output and extractJson tolerates stray prose.
+  const forbidsJsonMode = /claude|anthropic|opus|sonnet|haiku/i.test(resolvedModel);
+
   const body: Record<string, unknown> = {
-    model: model?.trim() || DEFAULT_CHAT_MODEL,
+    model: resolvedModel,
     messages: safeMessages,
   };
-  if (opts.json) body.response_format = { type: "json_object" };
+  if (opts.json && !forbidsJsonMode) body.response_format = { type: "json_object" };
   if (typeof opts.temperature === "number") body.temperature = opts.temperature;
 
   const res = await fetch(`${LAVA_BASE}/chat/completions`, {
