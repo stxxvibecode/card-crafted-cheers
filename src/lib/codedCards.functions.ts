@@ -202,17 +202,27 @@ async function callChat(
   model: string | undefined,
   system: string,
   user: string,
-  opts?: { json?: boolean },
+  opts?: { json?: boolean; maxTokens?: number },
 ): Promise<string> {
-  return lavaChat(
-    model,
-    [
-      { role: "system", content: system },
-      { role: "user", content: user },
-    ],
-    { json: opts?.json },
-  );
+  const messages = [
+    { role: "system" as const, content: system },
+    { role: "user" as const, content: user },
+  ];
+  const maxTokens = opts?.maxTokens ?? 8192;
+  try {
+    return await lavaChat(model, messages, { json: opts?.json, maxTokens });
+  } catch (e) {
+    // If the chosen model returned nothing (empty response / cap / refusal),
+    // retry once on a known-good default so the user still gets a card.
+    const msg = e instanceof Error ? e.message : String(e);
+    const empty = /empty response|hit its output cap|refused this prompt/i.test(msg);
+    if (empty && model && model !== "gemini-2.5-flash") {
+      return await lavaChat("gemini-2.5-flash", messages, { json: opts?.json, maxTokens });
+    }
+    throw e;
+  }
 }
+
 
 
 function stripFences(s: string): string {
