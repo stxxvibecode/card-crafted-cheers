@@ -19,14 +19,13 @@ const MessageInput = z.object({
   occasion: z.string().max(64).optional(),
   recipientName: z.string().max(80).optional(),
   senderName: z.string().max(80).optional(),
+  model: z.string().max(120).optional(),
 });
 
 export const generateMessage = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => MessageInput.parse(raw))
   .handler(async ({ data }) => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
-
+    const { lavaChat } = await import("./lava.server");
     const system = `You write short, warm, personal greeting card messages. 2–4 sentences. Sincere, specific, never generic. No hashtags, no emojis unless the prompt clearly calls for them. Do not sign the card. Do not include "Dear ___" salutations — start with the message itself.`;
     const user = [
       data.occasion ? `Occasion: ${data.occasion}` : null,
@@ -35,28 +34,13 @@ export const generateMessage = createServerFn({ method: "POST" })
       `Prompt from sender: ${data.prompt}`,
     ].filter(Boolean).join("\n");
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      if (res.status === 429) throw new Error("Rate limit — please try again shortly.");
-      if (res.status === 402) throw new Error("AI credits exhausted. Add credits to keep generating.");
-      throw new Error(`AI error: ${res.status} ${text}`);
-    }
-    const json = await res.json() as { choices?: Array<{ message?: { content?: string } }> };
-    const message = json.choices?.[0]?.message?.content?.trim();
-    if (!message) throw new Error("No message generated");
+    const message = await lavaChat(data.model, [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ]);
     return { message };
   });
+
 
 // ---- Save card ---------------------------------------------------------
 

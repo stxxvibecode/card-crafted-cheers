@@ -11,6 +11,9 @@ import { CodedCard } from "@/lib/codedCards/CodedCard";
 import { CodeViewer } from "@/lib/codedCards/CodeViewer";
 import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
+import { ModelPicker } from "@/components/ModelPicker";
+import { useModelPrefs } from "@/lib/modelStore";
+
 import {
   Loader2,
   RefreshCw,
@@ -85,6 +88,10 @@ type PlanUpdates = {
 function Create() {
   const { prompt: initialPrompt } = Route.useSearch();
   const navigate = useNavigate();
+  const { prefs } = useModelPrefs();
+  const prefsRef = useRef(prefs);
+  useEffect(() => { prefsRef.current = prefs; }, [prefs]);
+
 
   const [draft, setDraft] = useState<Draft>({
     prompt: initialPrompt ?? "",
@@ -129,16 +136,21 @@ function Create() {
   const regenerateImage = useCallback(async (imagePrompt: string, occasion?: string) => {
     setImage(null); setIsFinalImage(false); setImgLoading(true);
     try {
-      await streamImage("/api/generate-image", { prompt: imagePrompt, occasion }, (url, final) => {
-        setImage(url);
-        if (final) setIsFinalImage(true);
-      });
+      await streamImage(
+        "/api/generate-image",
+        { prompt: imagePrompt, occasion, model: prefsRef.current.image },
+        (url, final) => {
+          setImage(url);
+          if (final) setIsFinalImage(true);
+        },
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Image generation failed");
     } finally {
       setImgLoading(false);
     }
   }, []);
+
 
   const regenerateCode = useCallback(async (opts: {
     mode: "template" | "ai" | "edit";
@@ -169,7 +181,9 @@ function Create() {
             tempo: d.codeSpec.tempo,
             source: d.codeSpec.source,
           } : undefined,
+          model: prefsRef.current.chat,
         },
+
       });
       setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
     } catch (e) {
@@ -199,7 +213,9 @@ function Create() {
             senderName: currentDraft.senderName || undefined,
             medium: currentDraft.medium,
           },
+          model: prefsRef.current.chat,
         },
+
       });
 
       const u = res.updates;
@@ -263,8 +279,10 @@ function Create() {
           occasion: newOccasion,
           recipientName: currentDraft.recipientName || undefined,
           senderName: currentDraft.senderName || undefined,
+          model: prefsRef.current.chat,
         },
       })
+
         .then((r) => {
           setDraft((d) => ({ ...d, message: r.message }));
           // Re-render the coded card with the fresh message baked in.
@@ -329,7 +347,9 @@ function Create() {
         prompt: p, occasion: draft.occasion,
         recipientName: draft.recipientName || undefined,
         senderName: draft.senderName || undefined,
+        model: prefsRef.current.chat,
       }});
+
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code") {
         void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "template", message: r.message });
@@ -349,7 +369,9 @@ function Create() {
         prompt: p, occasion: draft.occasion,
         recipientName: draft.recipientName || undefined,
         senderName: draft.senderName || undefined,
+        model: prefsRef.current.chat,
       }});
+
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code" && draftRef.current.codeSpec) {
         void regenerateCode({ mode: "edit", message: r.message, instruction: "Refresh with the updated message." });
@@ -813,6 +835,7 @@ function ChatPanel({
                   <Code2 className="h-3 w-3" /> Code
                 </button>
               </div>
+              <ModelPicker />
               <select
                 value={actionMode}
                 onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
@@ -822,6 +845,7 @@ function ChatPanel({
                 <option value="plan">Plan</option>
                 <option value="build">Build</option>
               </select>
+
             </div>
             <PromptInputSubmit
               status={busy ? "streaming" : undefined}

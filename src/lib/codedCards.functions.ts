@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { TEMPLATES, suggestTemplate, type CodeSpec, type TemplateId } from "./codedCards/registry";
 import { phraseFor } from "./occasion";
+import { lavaChat } from "./lava.server";
 
 const PriorSchema = z.object({
   template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]).optional(),
@@ -21,13 +22,11 @@ const Input = z.object({
   paletteHint: z.array(z.string()).max(5).optional(),
   instruction: z.string().max(500).optional(),
   prior: PriorSchema.optional(),
+  model: z.string().max(120).optional(),
 });
 
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
 
-const CODE_MODEL = "google/gemini-3.5-flash";
-const PICKER_MODEL = "google/gemini-3-flash-preview";
-const GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
 
 const CODE_SYSTEM = `You write ONE self-contained JavaScript function body that renders a beautiful animated greeting-card visual into a provided container element.
 
@@ -140,31 +139,22 @@ Rules:
 - Keep browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars.
 - Apply the sender's requested change; keep the rest of the visual coherent.`;
 
-async function callChat(key: string, model: string, system: string, user: string, opts?: { schema?: unknown; schemaName?: string }): Promise<string> {
-  const body: Record<string, unknown> = {
+async function callChat(
+  model: string | undefined,
+  system: string,
+  user: string,
+  opts?: { json?: boolean },
+): Promise<string> {
+  return lavaChat(
     model,
-    messages: [{ role: "system", content: system }, { role: "user", content: user }],
-  };
-  if (opts?.schema) {
-    body.response_format = {
-      type: "json_schema",
-      json_schema: { name: opts.schemaName ?? "out", strict: true, schema: opts.schema },
-    };
-  }
-  const res = await fetch(GATEWAY, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    if (res.status === 429) throw new Error("Rate limit — try again in a moment.");
-    if (res.status === 402) throw new Error("AI credits exhausted.");
-    const t = await res.text().catch(() => "");
-    throw new Error(`AI error: ${res.status} ${t}`);
-  }
-  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-  return json.choices?.[0]?.message?.content?.trim() ?? "";
+    [
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ],
+    { json: opts?.json },
+  );
 }
+
 
 function stripFences(s: string): string {
   return s.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
@@ -178,10 +168,10 @@ function cleanPalette(input: string[] | undefined, fallback: string[]): string[]
 export const generateCodedCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => Input.parse(raw))
   .handler(async ({ data }): Promise<CodeSpec> => {
-    const key = process.env.LOVABLE_API_KEY;
-    if (!key) throw new Error("Missing LOVABLE_API_KEY");
+    const model = data.model;
 
     const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
+
     const finalMessage = data.message?.trim() ?? "";
     const seed = Math.floor(Math.random() * 1_000_000);
 
@@ -206,7 +196,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
           "--- CURRENT SOURCE ---",
           prior.source,
         ].filter(Boolean).join("\n");
-        const raw = await callChat(key, CODE_MODEL, EDIT_SYSTEM, user);
+        const raw = await callChat(model, EDIT_SYSTEM, user);
         const source = stripFences(raw);
         const palette = cleanPalette(data.paletteHint, prior.palette && prior.palette.length >= 3 ? prior.palette : TEMPLATES[0].palette);
         return {
@@ -250,7 +240,7 @@ Return JSON.
 - action='tweak': keep the template family, adjust palette (3-5 hex), tempo (0.5-2), and optionally swap template to one of: ${TEMPLATE_IDS.join(", ")}.
 - action='rewrite': the edit needs custom animation. Still return a fallback palette and tempo.
 palette[0] is background; ensure the phrase stays legible on it.`;
-      const raw = await callChat(key, PICKER_MODEL, decisionSys, decisionUser, { schema: DECISION_SCHEMA, schemaName: "edit_decision" });
+      const raw = await callChat(model, decisionSys, decisionUser, { json: true });
       let parsed: { action: "tweak" | "rewrite"; template: string | null; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, templateBase.palette);
@@ -274,7 +264,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         data.motionHint ? `Motion feel: ${data.motionHint}` : null,
         `Sender's request: ${instruction}`,
       ].filter(Boolean).join("\n");
-      const sourceRaw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
+      const sourceRaw = await callChat(model, CODE_SYSTEM, user);
       return {
         template: "ai",
         palette,
@@ -325,7 +315,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
         data.templateHint ? `Sender prefers the ${data.templateHint} template.` : null,
       ].filter(Boolean).join("\n");
 
-      const raw = await callChat(key, PICKER_MODEL, system, user, { schema: OUT, schemaName: "card_spec" }).catch(() => "");
+      const raw = await callChat(model, system, user, { json: true }).catch(() => "");
       let parsed: { template: string; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* fall through */ }
       const template = (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
@@ -348,7 +338,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `Palette (background first): ${JSON.stringify(palette)}`,
       data.motionHint ? `Motion feel: ${data.motionHint}` : "Surprise me — kinetic type, generative shapes, particles, gradients, or something poetic.",
     ].filter(Boolean).join("\n");
-    const raw = await callChat(key, CODE_MODEL, CODE_SYSTEM, user);
+    const raw = await callChat(model, CODE_SYSTEM, user);
     return {
       template: "ai",
       palette,
