@@ -1,9 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav } from "@/components/site-nav";
-import { Copy, Check, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight, Download } from "lucide-react";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
+import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import type { CodeSpec } from "@/lib/codedCards/registry";
 
 type Card = {
