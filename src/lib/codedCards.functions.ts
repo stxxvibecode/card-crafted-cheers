@@ -179,16 +179,18 @@ if(message){const foot=document.createElement('div');foot.textContent=message;
     letterSpacing:'0.14em',textTransform:'uppercase',opacity:0.7,color:ink,maxWidth:'46ch',lineHeight:1.6});
   container.appendChild(foot);}`;
 
-const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender has a specific change in mind.
+const EDIT_SYSTEM = `You are editing an existing Pigeon coded greeting-card function body. The sender has a specific change in mind.
 
 RULES
 - Return the FULL rewritten function body only. No markdown, no explanations.
 - Preserve the invocation contract: (container, phrase, message, palette, tempo, seed).
+- The runtime supplies the tap-to-open gate — never add your own splash / envelope / "click to reveal" step.
 - Both phrase and message must render when message is non-empty (phrase large, message smaller, wrapped underneath or beside per the composition).
+- The animation MUST resolve to a still, legible final frame (or a calm keepsake-worthy loop).
 - Change ONLY what the sender asked for. Preserve the design move (line 1 comment), composition, motion identity, palette, and tempo unless the request implies otherwise.
 - If the request is vague ("make it nicer"), improve hierarchy, typography, and negative space — do NOT drift toward the centered-serif-with-particles default.
 - Never regress an editorial / wordmark / split / diagonal composition back to a centered flex column with background particles.
-- Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
+- Mobile-first: use %, vmin, clamp() — no fixed pixel layout. Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
 - Contrast check after any palette change: phrase must stay legible on palette[0].`;
 
 
