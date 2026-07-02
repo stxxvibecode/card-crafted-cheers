@@ -28,7 +28,24 @@ const Input = z.object({
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
 
 
-const CODE_SYSTEM = `ROLE
+const CODE_SYSTEM = `PIGEON CARD BUILDER — PRODUCT SPEC
+You are the AI card builder inside Pigeon, an e-card creation platform. Think like a product designer, front-end engineer, motion designer, and copywriter at the same time. Turn the sender's short idea into a beautiful, interactive, coded e-card. If details are missing, infer tasteful defaults — do not make the experience feel complicated.
+
+Every card must land:
+- a clear occasion cue in the composition
+- the sender's personalized message rendered legibly
+- a strong visual direction (one committed idea, not a hedge)
+- a mobile-first, responsive layout that reads on a phone
+- lightweight animation used for delight, not distraction
+- clean, semantic DOM
+- a still, legible FINAL FRAME the recipient can screenshot or share (the animation MUST resolve to a calm, readable end state; a seamless loop is fine only if the loop itself reads as a keepsake)
+
+Design principles: personal, modern, emotionally intentional. Avoid generic greeting-card clichés unless the sender asked for them. Readability > cleverness. Prioritize spacing, hierarchy, and a strong emotional payoff on reveal. WCAG-legible contrast against palette[0].
+
+RUNTIME NOTE
+The Pigeon runtime already wraps your card in a tap-to-open gate for the recipient. DO NOT build your own splash / envelope / "click here" step — assume your animation starts on mount and the recipient has already opted in. Ease in over 600-1200ms, then land the composition.
+
+ROLE (design layer)
 You are a senior motion designer at a studio known for bespoke, editorial digital keepsakes. You ship ONE hand-crafted animated greeting card as a self-contained JavaScript function body. Every card is a one-of-one piece designed for THIS specific occasion, phrase, and message — not a reusable component, not a screensaver, not a template.
 
 INVOCATION CONTRACT
@@ -47,6 +64,7 @@ HARD ANTI-PATTERNS (the model reflexively produces these — DO NOT)
 - Generic sans headlines. Symmetric mirrored layouts with no focal point.
 - Motion that has no relationship to the occasion (starfield on a birthday, confetti on a condolence).
 - Two competing motion ideas hedged together. Pick one.
+- Building your own "tap to open" / envelope splash — the runtime already provides that.
 
 DESIGN MOVE (pick ONE per card, name it in a comment on line 1)
 Choose the compositional system that fits the occasion. Do not always pick the same one — vary with the seed.
@@ -161,16 +179,18 @@ if(message){const foot=document.createElement('div');foot.textContent=message;
     letterSpacing:'0.14em',textTransform:'uppercase',opacity:0.7,color:ink,maxWidth:'46ch',lineHeight:1.6});
   container.appendChild(foot);}`;
 
-const EDIT_SYSTEM = `You are editing an existing self-contained JavaScript animated greeting-card function body. The sender has a specific change in mind.
+const EDIT_SYSTEM = `You are editing an existing Pigeon coded greeting-card function body. The sender has a specific change in mind.
 
 RULES
 - Return the FULL rewritten function body only. No markdown, no explanations.
 - Preserve the invocation contract: (container, phrase, message, palette, tempo, seed).
+- The runtime supplies the tap-to-open gate — never add your own splash / envelope / "click to reveal" step.
 - Both phrase and message must render when message is non-empty (phrase large, message smaller, wrapped underneath or beside per the composition).
+- The animation MUST resolve to a still, legible final frame (or a calm keepsake-worthy loop).
 - Change ONLY what the sender asked for. Preserve the design move (line 1 comment), composition, motion identity, palette, and tempo unless the request implies otherwise.
 - If the request is vague ("make it nicer"), improve hierarchy, typography, and negative space — do NOT drift toward the centered-serif-with-particles default.
 - Never regress an editorial / wordmark / split / diagonal composition back to a centered flex column with background particles.
-- Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
+- Mobile-first: use %, vmin, clamp() — no fixed pixel layout. Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
 - Contrast check after any palette change: phrase must stay legible on palette[0].`;
 
 
@@ -396,7 +416,9 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `TEMPO: ${tempo}`,
         `VARIATION SEED: ${seed} — use this to pick composition, accent index, direction, easing.`,
         `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
-        `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion.`,
+        `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
+        `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
+        `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
         `SENDER'S EDIT REQUEST: ${instruction}`,
       ].join("\n");
 
@@ -475,7 +497,9 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `TEMPO: 1`,
       `VARIATION SEED: ${seed} — use this to pick composition, accent index, direction, easing.`,
       `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
-      `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion.`,
+      `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
+      `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
+      `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
     ].join("\n");
 
     const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion);

@@ -29,7 +29,9 @@ import {
   Hammer,
   Eye,
   FileCode2,
+  Download,
 } from "lucide-react";
+import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import { z } from "zod";
 import {
   Conversation,
@@ -563,6 +565,23 @@ function Create() {
                   >
                     <Sparkles className="h-3 w-3" /> Surprise me
                   </button>
+                  {draft.codeSpec?.template === "ai" && draft.codeSpec.source && (
+                    <button
+                      onClick={() => {
+                        const ok = downloadStandaloneHtml(draft.codeSpec!, {
+                          recipientName: draft.recipientName,
+                          senderName: draft.senderName,
+                          message: draft.message,
+                          occasion: draft.occasion,
+                        });
+                        if (ok) toast.success("Downloaded standalone HTML");
+                        else toast.error("Export not available for this card.");
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      <Download className="h-3 w-3" /> Download
+                    </button>
+                  )}
                 </div>
               </div>
             )}

@@ -1,9 +1,11 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav } from "@/components/site-nav";
-import { Copy, Check, ArrowRight } from "lucide-react";
+import { Copy, Check, ArrowRight, Download } from "lucide-react";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
+import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import type { CodeSpec } from "@/lib/codedCards/registry";
 
 type Card = {
@@ -71,7 +73,7 @@ function CardPage() {
         <article className="mt-6 overflow-hidden rounded-3xl border border-border bg-card shadow-[0_40px_100px_-40px_rgba(0,0,0,0.7)]">
           <div className="aspect-square w-full">
             {card.medium === "code" && card.code_spec ? (
-              <CodedCard spec={card.code_spec} />
+              <CodedCard spec={card.code_spec} awaitTap recipientName={card.recipient_name} />
             ) : card.image_url ? (
               <img src={card.image_url} alt="" className="h-full w-full object-cover" />
             ) : null}
@@ -91,6 +93,23 @@ function CardPage() {
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied ? "Copied!" : "Copy link"}
           </button>
+          {card.medium === "code" && card.code_spec?.template === "ai" && card.code_spec.source && (
+            <button
+              onClick={() => {
+                const ok = downloadStandaloneHtml(card.code_spec!, {
+                  recipientName: card.recipient_name,
+                  senderName: card.sender_name,
+                  message: card.message,
+                  occasion: card.occasion,
+                });
+                if (ok) toast.success(`Saved pigeon-card-${(card.code_spec!.seed || Date.now()).toString(36).slice(-6)}.html`);
+                else toast.error("Export not available for this card.");
+              }}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm hover:border-primary/40"
+            >
+              <Download className="h-4 w-4" /> Download HTML
+            </button>
+          )}
           <Link to="/create" className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-blush to-amber px-4 py-2 text-sm font-medium text-background hover:opacity-90">
             Make your own <ArrowRight className="h-4 w-4" />
           </Link>
