@@ -569,8 +569,8 @@ function Create() {
                     <button
                       onClick={() => {
                         const ok = downloadStandaloneHtml(draft.codeSpec!, {
-                          recipientName: draft.recipient,
-                          senderName: draft.sender,
+                          recipientName: draft.recipientName,
+                          senderName: draft.senderName,
                           message: draft.message,
                           occasion: draft.occasion,
                         });
