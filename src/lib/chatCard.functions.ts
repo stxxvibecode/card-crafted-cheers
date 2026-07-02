@@ -96,11 +96,22 @@ Rules:
 Current draft:
 ${JSON.stringify(data.draft, null, 2)}`;
 
+    // Some providers (e.g. Anthropic via lava) reject conversations ending
+    // with an assistant turn. Trim trailing assistant messages so the last
+    // turn is always a user message.
+    const trimmed = [...data.messages];
+    while (trimmed.length && trimmed[trimmed.length - 1].role === "assistant") {
+      trimmed.pop();
+    }
+    if (trimmed.length === 0) {
+      trimmed.push({ role: "user", content: "Let's begin." });
+    }
+
     const raw = await lavaChat(
       data.model,
       [
         { role: "system", content: system },
-        ...data.messages,
+        ...trimmed,
       ],
       { json: true },
     );
