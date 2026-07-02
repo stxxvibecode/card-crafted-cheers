@@ -375,7 +375,9 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `MESSAGE (render smaller, wrapped, may be empty): """${finalMessage}"""`,
       `PALETTE (bg first): ${JSON.stringify(palette)}`,
       `TEMPO: 1`,
-      `MOTION DIRECTION: ${data.motionHint ?? "designer's choice — pick one intentional motion for this occasion"}`,
+      `VARIATION SEED: ${seed} — use this to pick composition, accent index, direction, easing.`,
+      `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
+      `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion.`,
     ].join("\n");
 
     const raw = await callChat(model, CODE_SYSTEM, user);
