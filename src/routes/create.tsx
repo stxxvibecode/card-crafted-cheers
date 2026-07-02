@@ -509,7 +509,7 @@ function Create() {
                 onSend={(t) => handleSend(t)}
                 pendingPlan={pendingPlan}
                 medium={draft.medium}
-                setMedium={setMedium}
+                mediumPickerRef={mediumPickerRef}
                 actionMode={actionMode}
                 setActionMode={setActionMode}
                 onBuild={commitPlan}
