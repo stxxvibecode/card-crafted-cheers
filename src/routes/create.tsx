@@ -744,7 +744,7 @@ function ChatPanel({
   onSend,
   pendingPlan,
   medium,
-  setMedium,
+  mediumPickerRef,
   actionMode,
   setActionMode,
   onBuild,
@@ -756,7 +756,7 @@ function ChatPanel({
   onSend: (text: string) => void;
   pendingPlan: PlanUpdates | null;
   medium?: Medium;
-  setMedium: (m: Medium) => void;
+  mediumPickerRef: React.RefObject<HTMLDivElement | null>;
   actionMode: "plan" | "build";
   setActionMode: (m: "plan" | "build") => void;
   onBuild: (p: PlanUpdates) => void;
@@ -765,7 +765,6 @@ function ChatPanel({
 }) {
   const [text, setText] = useState(initialText);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  const mediumPickerRef = useRef<HTMLDivElement | null>(null);
   const hadPrefill = useRef(!!initialText.trim());
 
   useEffect(() => {
@@ -781,9 +780,6 @@ function ChatPanel({
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
   }, [busy, messages.length]);
-
-  const needsMedium = !medium;
-  const attention = needsMedium && hadPrefill.current;
 
   const canSubmit = !!medium && !!text.trim() && !busy;
 
@@ -819,16 +815,11 @@ function ChatPanel({
       </Conversation>
 
       <div className="border-t border-border p-3">
-        {needsMedium && (
-          <p className="mb-2 text-center text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            Choose <span className="text-foreground">Art</span> or <span className="text-foreground">Code</span>, then hit Build
-          </p>
-        )}
         <PromptInput
           onSubmit={(msg) => {
             const t = msg.text.trim();
             if (!t) return;
-            if (!medium) { toast.error("Pick Art or Code below first."); return; }
+            if (!medium) { toast.error("Pick Art or Code above first."); return; }
             setText("");
             onSend(t);
           }}
@@ -836,32 +827,12 @@ function ChatPanel({
           <PromptInputTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={medium ? "Describe your card, or ask for changes…" : "Pick a medium below, then describe your card…"}
+            placeholder={medium ? "Describe your card, or ask for changes…" : "Pick Art or Code above, then describe your card…"}
             disabled={busy}
           />
 
           <PromptInputFooter className="flex-wrap justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
-              <div
-                ref={mediumPickerRef}
-                tabIndex={-1}
-                className={`inline-flex shrink-0 rounded-full border bg-background p-0.5 text-xs outline-none transition ${attention ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
-              >
-                <button
-                  type="button"
-                  onClick={() => setMedium("art")}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "art" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Palette className="h-3 w-3" /> Art
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMedium("code")}
-                  className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 transition ${medium === "code" ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-                >
-                  <Code2 className="h-3 w-3" /> Code
-                </button>
-              </div>
               <ModelPicker />
               <select
                 value={actionMode}
@@ -878,7 +849,7 @@ function ChatPanel({
               className="shrink-0"
               status={busy ? "streaming" : undefined}
               disabled={!canSubmit}
-              title={needsMedium ? "Pick Art or Code first" : undefined}
+              title={!medium ? "Pick Art or Code first" : undefined}
             >
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
@@ -890,6 +861,7 @@ function ChatPanel({
     </div>
   );
 }
+
 
 function EditorPanel({
   draft,
