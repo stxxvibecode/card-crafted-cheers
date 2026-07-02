@@ -279,8 +279,10 @@ function Create() {
           occasion: newOccasion,
           recipientName: currentDraft.recipientName || undefined,
           senderName: currentDraft.senderName || undefined,
+          model: prefsRef.current.chat,
         },
       })
+
         .then((r) => {
           setDraft((d) => ({ ...d, message: r.message }));
           // Re-render the coded card with the fresh message baked in.
