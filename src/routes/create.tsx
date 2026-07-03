@@ -868,18 +868,45 @@ function SharePanel({
   onClose: () => void;
   onView: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
   const sender = senderName.trim() || "Someone";
   const recipient = recipientName.trim() || "you";
-  const title = `${sender} sent ${recipient} a card`;
+  const title = `${sender} made ${recipient} a card`;
   const shareText = `${title}${occasion ? ` for ${occasion.toLowerCase()}` : ""}. Open it here: ${url}`;
   const encodedUrl = encodeURIComponent(url);
   const emailSubject = encodeURIComponent(title);
   const emailBody = encodeURIComponent(`${shareText}\n\nMade with Pigeon.`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=12&data=${encodedUrl}`;
 
+  async function writeClipboard(text: string) {
+    if (navigator.clipboard?.writeText && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.setAttribute("readonly", "");
+    textarea.style.position = "fixed";
+    textarea.style.left = "-9999px";
+    textarea.style.top = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    const ok = document.execCommand("copy");
+    document.body.removeChild(textarea);
+    if (!ok) throw new Error("Clipboard unavailable");
+  }
+
   async function copyLink() {
-    await navigator.clipboard.writeText(url);
-    toast.success("Link copied");
+    try {
+      await writeClipboard(url);
+      setCopied(true);
+      toast.success("Card link copied");
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch {
+      toast.error("Couldn't copy automatically. Select the link and copy it manually.");
+    }
   }
 
   async function nativeShare() {
@@ -901,9 +928,9 @@ function SharePanel({
           <div className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
             <Share2 className="h-3 w-3" /> Ready to share
           </div>
-          <h3 className="mt-1 font-display text-xl leading-tight">Send this card anywhere.</h3>
+          <h3 className="mt-1 font-display text-xl leading-tight">Your card link is ready.</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Copy the link, open your device's share sheet, start an email, or let someone scan the
+            Copy the link, send it by email, open your device's share sheet, or let someone scan the
             QR code.
           </p>
         </div>
@@ -924,14 +951,17 @@ function SharePanel({
               readOnly
               value={url}
               className="min-w-0 flex-1 bg-transparent px-2 text-xs text-muted-foreground outline-none"
-              aria-label="Share card link"
+              aria-label="Card share link"
+              onFocus={(event) => event.currentTarget.select()}
             />
             <button
               type="button"
               onClick={copyLink}
+              aria-label="Copy card link to clipboard"
               className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background hover:opacity-90"
             >
-              <Copy className="h-3.5 w-3.5" /> Copy
+              {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Copied" : "Copy"}
             </button>
           </div>
 
@@ -939,12 +969,14 @@ function SharePanel({
             <button
               type="button"
               onClick={nativeShare}
+              aria-label="Open device share sheet for this card link"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
             >
               <Share2 className="h-4 w-4" /> Share
             </button>
             <a
               href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
+              aria-label="Create an email with this card link"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
             >
               <Mail className="h-4 w-4" /> Email
@@ -952,6 +984,7 @@ function SharePanel({
             <button
               type="button"
               onClick={onView}
+              aria-label="Open the recipient card page"
               className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
             >
               <ExternalLink className="h-4 w-4" /> Open
