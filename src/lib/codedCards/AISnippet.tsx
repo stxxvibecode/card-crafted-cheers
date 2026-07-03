@@ -48,25 +48,37 @@ export function AISnippet({
       title="Coded card"
       sandbox="allow-scripts"
       className="w-full border-0"
-      style={{ height: "100%", minHeight: contentH ? `${contentH}px` : undefined, display: "block" }}
+      style={{
+        height: "100%",
+        minHeight: contentH ? `${contentH}px` : undefined,
+        display: "block",
+      }}
       srcDoc={html}
     />
   );
 }
 
-function buildSrcDoc(source: string, phrase: string, message: string, palette: string[], tempo: number, seed: number): string {
+function buildSrcDoc(
+  source: string,
+  phrase: string,
+  message: string,
+  palette: string[],
+  tempo: number,
+  seed: number,
+): string {
   const safe = safeSnippetOrFallback(source);
   const bg = palette[0] ?? "#000";
   const data = JSON.stringify({ phrase, message, palette, tempo, seed });
   return `<!doctype html><html><head><meta charset="utf-8"><style>
-    html,body{margin:0;padding:0;height:100%;background:${bg};overflow:hidden;font-family:'Instrument Serif',serif;color:#fff;}
-    #card{position:relative;width:100%;height:100%;}
+    html,body{margin:0;padding:0;min-height:100%;background:${bg};overflow:visible;font-family:'Instrument Serif',serif;color:#fff;}
+    #card{position:relative;width:100%;height:100vh;min-height:100vh;overflow:visible;}
   </style></head><body><div id="card"></div><script>
     (function(){
       const container = document.getElementById('card');
       const { phrase, message, palette, tempo, seed } = ${data};
       try {
         (new Function('container','phrase','message','palette','tempo','seed',${JSON.stringify(safe)}))(container, phrase, message, palette, tempo, seed);
+        container.style.overflow = 'visible';
       } catch (e) {
         container.innerHTML = '<div style="display:grid;place-items:center;height:100%;padding:2rem;text-align:center;"><div style="font-size:2rem;margin-bottom:1rem;">' + phrase + '</div><div style="font-size:1rem;opacity:0.8;max-width:80%;line-height:1.4;">' + (message||'') + '</div></div>';
       }
@@ -74,7 +86,9 @@ function buildSrcDoc(source: string, phrase: string, message: string, palette: s
       // resize and never clip the card.
       function report(){
         try {
-          const h = Math.max(document.documentElement.scrollHeight, container.scrollHeight);
+          const rects = Array.from(container.children).map((el) => el.getBoundingClientRect());
+          const maxBottom = rects.reduce((m, r) => Math.max(m, r.bottom), container.getBoundingClientRect().bottom);
+          const h = Math.ceil(Math.max(document.documentElement.scrollHeight, document.body.scrollHeight, container.scrollHeight, maxBottom));
           parent.postMessage({ type: 'pigeon:card-height', height: h }, '*');
         } catch (e) { /* sandboxed, ignore */ }
       }
@@ -85,5 +99,5 @@ function buildSrcDoc(source: string, phrase: string, message: string, palette: s
         new ResizeObserver(report).observe(container);
       }
     })();
-  <\/script></body></html>`;
+  </script></body></html>`;
 }

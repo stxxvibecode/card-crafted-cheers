@@ -31,7 +31,7 @@ type Card = {
 export const Route = createFileRoute("/card/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase
-      .from("cards")
+      .from("public_cards")
       .select("id, message, image_url, sender_name, recipient_name, occasion, medium, code_spec")
       .eq("id", params.id)
       .maybeSingle();
@@ -42,9 +42,15 @@ export const Route = createFileRoute("/card/$id")({
     meta: loaderData
       ? [
           { title: `A card for ${loaderData.card.recipient_name} — Pigeon` },
-          { name: "description", content: `${loaderData.card.sender_name ?? "Someone"} sent you a card. Tap to open it.` },
+          {
+            name: "description",
+            content: `${loaderData.card.sender_name ?? "Someone"} sent you a card. Tap to open it.`,
+          },
           { property: "og:title", content: `A card for ${loaderData.card.recipient_name}` },
-          { property: "og:description", content: `${loaderData.card.sender_name ?? "Someone"} made this just for you.` },
+          {
+            property: "og:description",
+            content: `${loaderData.card.sender_name ?? "Someone"} made this just for you.`,
+          },
           ...(loaderData.card.image_url?.startsWith("http")
             ? [{ property: "og:image", content: loaderData.card.image_url }]
             : []),
@@ -90,7 +96,8 @@ function UnavailableCard() {
         </span>
         <h1 className="font-display text-3xl">We couldn't find this card</h1>
         <p className="text-sm leading-relaxed text-muted-foreground">
-          It may have been removed, or the link isn't quite right. Please check the link and try again.
+          It may have been removed, or the link isn't quite right. Please check the link and try
+          again.
         </p>
         <Link
           to="/"
@@ -142,7 +149,15 @@ function CardPage() {
       style={{ background: bg, color: ink, transition: "background 800ms ease" }}
     >
       {stage !== "revealed" ? (
-        <IntroGate card={card} tone={tone} ink={ink} bg={bg} light={light} opening={stage === "opening"} onOpen={open} />
+        <IntroGate
+          card={card}
+          tone={tone}
+          ink={ink}
+          bg={bg}
+          light={light}
+          opening={stage === "opening"}
+          onOpen={open}
+        />
       ) : (
         <RevealedCard
           card={card}
@@ -185,7 +200,8 @@ function IntroGate({
     btnRef.current?.focus();
   }, []);
 
-  const accent = card.code_spec?.palette?.[2] ?? card.code_spec?.palette?.[1] ?? (light ? "#8a5a2b" : "#d8a657");
+  const accent =
+    card.code_spec?.palette?.[2] ?? card.code_spec?.palette?.[1] ?? (light ? "#8a5a2b" : "#d8a657");
   const sender = card.sender_name?.trim();
 
   return (
@@ -214,7 +230,10 @@ function IntroGate({
           {sender ? `${sender} sent you a card` : "Someone sent you a card"}
         </h1>
         {card.recipient_name && (
-          <p className="text-base italic opacity-70" style={{ fontFamily: '"Instrument Serif", Georgia, serif' }}>
+          <p
+            className="text-base italic opacity-70"
+            style={{ fontFamily: '"Instrument Serif", Georgia, serif' }}
+          >
             made just for {card.recipient_name}
           </p>
         )}
@@ -281,7 +300,11 @@ function RevealedCard({
         {card.medium === "code" && card.code_spec ? (
           <CodedCard spec={card.code_spec} recipientName={card.recipient_name} />
         ) : card.image_url ? (
-          <img src={card.image_url} alt={`${card.occasion ?? "greeting"} card artwork`} className="h-full w-full object-cover" />
+          <img
+            src={card.image_url}
+            alt={`${card.occasion ?? "greeting"} card artwork`}
+            className="h-full w-full object-cover"
+          />
         ) : null}
       </div>
 
@@ -293,7 +316,9 @@ function RevealedCard({
       {/* Message */}
       <div
         ref={messageRef}
-        className={reducedMotion ? "" : "animate-[pigeon-rise_800ms_cubic-bezier(0.2,0.7,0.2,1)_600ms_both]"}
+        className={
+          reducedMotion ? "" : "animate-[pigeon-rise_800ms_cubic-bezier(0.2,0.7,0.2,1)_600ms_both]"
+        }
       >
         <div className="mx-auto mt-10 max-w-prose text-center">
           <p
@@ -302,9 +327,7 @@ function RevealedCard({
           >
             {card.message}
           </p>
-          {card.sender_name && (
-            <p className="mt-6 text-sm opacity-60">— {card.sender_name}</p>
-          )}
+          {card.sender_name && <p className="mt-6 text-sm opacity-60">— {card.sender_name}</p>}
         </div>
       </div>
 
@@ -461,7 +484,10 @@ function ActionArea({
           <Check className="h-4 w-4" /> Your reply was sent to {sender}.
         </div>
       ) : (
-        <div className="space-y-2 rounded-2xl p-3" style={{ background: surface, border: `1px solid ${border}` }}>
+        <div
+          className="space-y-2 rounded-2xl p-3"
+          style={{ background: surface, border: `1px solid ${border}` }}
+        >
           <label htmlFor="card-reply" className="sr-only">
             Your reply
           </label>
@@ -484,7 +510,11 @@ function ActionArea({
               className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-xs font-medium transition hover:opacity-90 disabled:opacity-40"
               style={{ background: ink, color: bg }}
             >
-              {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+              {sending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
+              )}
               Send reply
             </button>
           </div>
@@ -542,7 +572,13 @@ function usePrefersReducedMotion() {
 
 function isLight(hex: string): boolean {
   const m = hex.replace("#", "");
-  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m.slice(0, 6);
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m.slice(0, 6);
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);

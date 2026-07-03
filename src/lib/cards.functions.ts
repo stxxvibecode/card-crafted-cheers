@@ -32,7 +32,9 @@ export const generateMessage = createServerFn({ method: "POST" })
       data.recipientName ? `Recipient: ${data.recipientName}` : null,
       data.senderName ? `From: ${data.senderName}` : null,
       `Prompt from sender: ${data.prompt}`,
-    ].filter(Boolean).join("\n");
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     const message = await lavaChat(data.model, [
       { role: "system", content: system },
@@ -41,30 +43,40 @@ export const generateMessage = createServerFn({ method: "POST" })
     return { message };
   });
 
-
 // ---- Save card ---------------------------------------------------------
 
-const SaveInput = z.object({
-  prompt: z.string().min(1).max(500),
-  occasion: z.string().max(64).optional(),
-  message: z.string().min(1).max(4000),
-  medium: z.enum(["art", "code"]).default("art"),
-  imageDataUrl: z.string().min(20).max(8_000_000).optional(),
-  codeSpec: z.object({
-    template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]),
-    palette: z.array(z.string()).min(3).max(5),
-    phrase: z.string().min(1).max(80),
-    tempo: z.number().min(0.4).max(2),
-    seed: z.number(),
-    source: z.string().max(12000).optional(),
-  }).optional(),
-  senderName: z.string().max(80).optional(),
-  recipientName: z.string().min(1).max(80),
-  recipientEmail: z.string().email().max(200),
-}).refine(
-  (v) => (v.medium === "art" ? !!v.imageDataUrl : !!v.codeSpec),
-  { message: "Art cards need an image; code cards need a codeSpec." },
-);
+const SaveInput = z
+  .object({
+    prompt: z.string().min(1).max(500),
+    occasion: z.string().max(64).optional(),
+    message: z.string().min(1).max(4000),
+    medium: z.enum(["art", "code"]).default("art"),
+    imageDataUrl: z.string().min(20).max(8_000_000).optional(),
+    codeSpec: z
+      .object({
+        template: z.enum([
+          "confetti",
+          "fireworks",
+          "kinetic",
+          "hearts",
+          "starfield",
+          "ribbons",
+          "ai",
+        ]),
+        palette: z.array(z.string()).min(3).max(5),
+        phrase: z.string().min(1).max(80),
+        tempo: z.number().min(0.4).max(2),
+        seed: z.number(),
+        source: z.string().max(12000).optional(),
+      })
+      .optional(),
+    senderName: z.string().max(80).optional(),
+    recipientName: z.string().min(1).max(80),
+    recipientEmail: z.string().email().max(200).optional(),
+  })
+  .refine((v) => (v.medium === "art" ? !!v.imageDataUrl : !!v.codeSpec), {
+    message: "Art cards need an image; code cards need a codeSpec.",
+  });
 
 export const saveCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => SaveInput.parse(raw))
@@ -94,7 +106,7 @@ export const saveCard = createServerFn({ method: "POST" })
         code_spec: data.codeSpec ?? null,
         sender_name: data.senderName ?? null,
         recipient_name: data.recipientName,
-        recipient_email: data.recipientEmail,
+        recipient_email: data.recipientEmail ?? null,
       })
       .select("id")
       .single();
@@ -118,9 +130,8 @@ export const sendCard = createServerFn({ method: "POST" })
       .maybeSingle();
     if (error || !card) throw new Error("Card not found");
 
-    // Mark as sent (best-effort). Email delivery is stubbed for MVP — the
-    // recipient receives the shareable link on the confirmation screen.
-    await sb.from("cards").update({ sent_at: new Date().toISOString() }).eq("id", card.id);
+    // Delivery is not wired yet. Keep this function for future email support,
+    // but do not mark the card as sent until a provider confirms delivery.
 
     return { ok: true, id: card.id };
   });

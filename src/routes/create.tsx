@@ -4,7 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { SiteNav } from "@/components/site-nav";
 import { streamImage } from "@/lib/streamImage";
-import { generateMessage, saveCard, sendCard } from "@/lib/cards.functions";
+import { generateMessage, saveCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
@@ -56,11 +56,21 @@ export const Route = createFileRoute("/create")({
   component: Create,
 });
 
-const OCCASIONS = ["Birthday", "Thank you", "Congrats", "Get well", "Holiday", "Anniversary", "Just because"];
+const OCCASIONS = [
+  "Birthday",
+  "Thank you",
+  "Congrats",
+  "Get well",
+  "Holiday",
+  "Anniversary",
+  "Just because",
+];
 
 function wantsFreshCodeDesign(instruction?: string) {
   if (!instruction) return false;
-  return /\b(different|vary|variation|fresh|new|another|again|redo|redesign|rebuild|not the same|same design|switch it up)\b/i.test(instruction);
+  return /\b(different|vary|variation|fresh|new|another|again|redo|redesign|rebuild|not the same|same design|switch it up)\b/i.test(
+    instruction,
+  );
 }
 
 type ChatMsg = { id: string; role: "user" | "assistant"; content: string; planId?: string };
@@ -86,7 +96,15 @@ type PlanUpdates = {
   recipientName: string | null;
   senderName: string | null;
   medium: Medium | null;
-  codeTemplate: "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
+  codeTemplate:
+    | "confetti"
+    | "fireworks"
+    | "kinetic"
+    | "hearts"
+    | "starfield"
+    | "ribbons"
+    | "ai"
+    | null;
   codeMotion: string | null;
   codePalette: string[] | null;
   regenerateImage: boolean;
@@ -99,10 +117,10 @@ function Create() {
   const navigate = useNavigate();
   const { prefs } = useModelPrefs();
   const prefsRef = useRef(prefs);
-  useEffect(() => { prefsRef.current = prefs; }, [prefs]);
+  useEffect(() => {
+    prefsRef.current = prefs;
+  }, [prefs]);
   const mediumPickerRef = useRef<HTMLDivElement | null>(null);
-
-
 
   const [draft, setDraft] = useState<Draft>({
     prompt: initialPrompt ?? "",
@@ -136,15 +154,18 @@ function Create() {
 
   const msgFn = useServerFn(generateMessage);
   const saveFn = useServerFn(saveCard);
-  const sendFn = useServerFn(sendCard);
   const chatFn = useServerFn(chatCard);
   const codeFn = useServerFn(generateCodedCard);
 
   const draftRef = useRef(draft);
-  useEffect(() => { draftRef.current = draft; }, [draft]);
+  useEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
 
   const regenerateImage = useCallback(async (imagePrompt: string, occasion?: string) => {
-    setImage(null); setIsFinalImage(false); setImgLoading(true);
+    setImage(null);
+    setIsFinalImage(false);
+    setImgLoading(true);
     try {
       await streamImage(
         "/api/generate-image",
@@ -161,47 +182,51 @@ function Create() {
     }
   }, []);
 
-
-  const regenerateCode = useCallback(async (opts: {
-    mode: "template" | "ai" | "edit";
-    templateHint?: Exclude<TemplateId, "ai">;
-    motionHint?: string;
-    paletteHint?: string[];
-    instruction?: string;
-    phrase?: string;
-    message?: string;
-  }) => {
-    const d = draftRef.current;
-    setCodeLoading(true);
-    try {
-      const spec = await codeFn({
-        data: {
-          prompt: d.prompt || undefined,
-          occasion: d.occasion,
-          phrase: opts.phrase ?? phraseFor(d.occasion),
-          message: (opts.message ?? d.message) || undefined,
-          mode: opts.mode,
-          templateHint: opts.templateHint,
-          motionHint: opts.motionHint,
-          paletteHint: opts.paletteHint,
-          instruction: opts.instruction,
-          prior: opts.mode === "edit" && d.codeSpec ? {
-            template: d.codeSpec.template,
-            palette: d.codeSpec.palette,
-            tempo: d.codeSpec.tempo,
-            source: d.codeSpec.source,
-          } : undefined,
-          model: prefsRef.current.chat,
-        },
-
-      });
-      setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Coded card failed");
-    } finally {
-      setCodeLoading(false);
-    }
-  }, [codeFn]);
+  const regenerateCode = useCallback(
+    async (opts: {
+      mode: "template" | "ai" | "edit";
+      templateHint?: Exclude<TemplateId, "ai">;
+      motionHint?: string;
+      paletteHint?: string[];
+      instruction?: string;
+      phrase?: string;
+      message?: string;
+    }) => {
+      const d = draftRef.current;
+      setCodeLoading(true);
+      try {
+        const spec = await codeFn({
+          data: {
+            prompt: d.prompt || undefined,
+            occasion: d.occasion,
+            phrase: opts.phrase ?? phraseFor(d.occasion),
+            message: (opts.message ?? d.message) || undefined,
+            mode: opts.mode,
+            templateHint: opts.templateHint,
+            motionHint: opts.motionHint,
+            paletteHint: opts.paletteHint,
+            instruction: opts.instruction,
+            prior:
+              opts.mode === "edit" && d.codeSpec
+                ? {
+                    template: d.codeSpec.template,
+                    palette: d.codeSpec.palette,
+                    tempo: d.codeSpec.tempo,
+                    source: d.codeSpec.source,
+                  }
+                : undefined,
+            model: prefsRef.current.chat,
+          },
+        });
+        setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : "Coded card failed");
+      } finally {
+        setCodeLoading(false);
+      }
+    },
+    [codeFn],
+  );
 
   async function handleSend(text: string) {
     const t = text.trim();
@@ -225,21 +250,31 @@ function Create() {
           },
           model: prefsRef.current.chat,
         },
-
       });
 
       const u = res.updates;
       const hasProposals =
-        !!u.prompt || !!u.occasion || !!u.message ||
-        !!u.recipientName || !!u.senderName || !!u.medium ||
-        !!u.codeTemplate || !!u.codeMotion || (u.codePalette && u.codePalette.length > 0) ||
+        !!u.prompt ||
+        !!u.occasion ||
+        !!u.message ||
+        !!u.recipientName ||
+        !!u.senderName ||
+        !!u.medium ||
+        !!u.codeTemplate ||
+        !!u.codeMotion ||
+        (u.codePalette && u.codePalette.length > 0) ||
         u.regenerateImage;
 
       const planId = crypto.randomUUID();
       const planForBuild: PlanUpdates = { ...u, id: planId, built: false, instruction: t };
       setMessages((prev) => [
         ...prev,
-        { id: crypto.randomUUID(), role: "assistant", content: res.reply, planId: hasProposals ? planId : undefined },
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: res.reply,
+          planId: hasProposals ? planId : undefined,
+        },
       ]);
       if (hasProposals) {
         setPendingPlan(planForBuild);
@@ -253,95 +288,110 @@ function Create() {
 
   const commitPlanRef = useRef<((p: PlanUpdates) => void) | null>(null);
 
-  const commitPlan = useCallback(async (plan: PlanUpdates) => {
-    const currentDraft = draftRef.current;
-    const targetMedium = (plan.medium ?? currentDraft.medium) as Medium | undefined;
-    if (!targetMedium) {
-      toast.error("Pick Art or Code above first.");
-      return;
-    }
-
-    const newPrompt = plan.prompt ?? currentDraft.prompt;
-    const newOccasion = plan.occasion ?? currentDraft.occasion;
-    const nextMessage = plan.message ?? currentDraft.message;
-
-    setDraft((d) => ({
-      ...d,
-      prompt: plan.prompt ?? d.prompt,
-      occasion: plan.occasion ?? d.occasion,
-      message: plan.message ?? d.message,
-      recipientName: plan.recipientName ?? d.recipientName,
-      senderName: plan.senderName ?? d.senderName,
-      medium: targetMedium,
-    }));
-    setPendingPlan((p) => (p && p.id === plan.id ? { ...p, built: true } : p));
-
-    // Draft a message if the plan didn't include one and we still don't have one
-    if (!nextMessage.trim() && newPrompt.trim()) {
-      setMsgLoading(true);
-      msgFn({
-        data: {
-          prompt: newPrompt,
-          occasion: newOccasion,
-          recipientName: currentDraft.recipientName || undefined,
-          senderName: currentDraft.senderName || undefined,
-          model: prefsRef.current.chat,
-        },
-      })
-
-        .then((r) => {
-          setDraft((d) => ({ ...d, message: r.message }));
-          // Re-render the coded card with the fresh message baked in.
-          if (targetMedium === "code") {
-            void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "ai", message: r.message });
-          }
-        })
-        .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
-        .finally(() => setMsgLoading(false));
-    }
-
-    if (targetMedium === "art") {
-      if (!newPrompt.trim()) {
-        toast.error("Add a description of the card before building.");
+  const commitPlan = useCallback(
+    async (plan: PlanUpdates) => {
+      const currentDraft = draftRef.current;
+      const targetMedium = (plan.medium ?? currentDraft.medium) as Medium | undefined;
+      if (!targetMedium) {
+        toast.error("Pick Art or Code above first.");
         return;
       }
-      void regenerateImage(newPrompt, newOccasion ?? undefined);
-    } else {
-      const hint = plan.codeTemplate;
-      const templateHint = (hint && hint !== "ai" ? hint : undefined) as Exclude<TemplateId, "ai"> | undefined;
-      const motionHint = plan.codeMotion ?? undefined;
-      const paletteHint = plan.codePalette ?? undefined;
-      const messageForCard = nextMessage || undefined;
-      const freshDesign = wantsFreshCodeDesign(plan.instruction);
 
-      // If we already have a code spec, iterate for small tweaks; rebuild from scratch for variation requests.
-      if (currentDraft.codeSpec && !freshDesign) {
-        void regenerateCode({
-          mode: "edit",
-          templateHint,
-          motionHint,
-          paletteHint,
-          instruction: plan.instruction,
-          message: messageForCard,
-        });
-      } else {
-        void regenerateCode({
-          mode: "ai",
-          templateHint,
-          motionHint,
-          paletteHint,
-          message: messageForCard,
-        });
+      const newPrompt = plan.prompt ?? currentDraft.prompt;
+      const newOccasion = plan.occasion ?? currentDraft.occasion;
+      const nextMessage = plan.message ?? currentDraft.message;
+
+      setDraft((d) => ({
+        ...d,
+        prompt: plan.prompt ?? d.prompt,
+        occasion: plan.occasion ?? d.occasion,
+        message: plan.message ?? d.message,
+        recipientName: plan.recipientName ?? d.recipientName,
+        senderName: plan.senderName ?? d.senderName,
+        medium: targetMedium,
+      }));
+      setPendingPlan((p) => (p && p.id === plan.id ? { ...p, built: true } : p));
+
+      // Draft a message if the plan didn't include one and we still don't have one
+      if (!nextMessage.trim() && newPrompt.trim()) {
+        setMsgLoading(true);
+        msgFn({
+          data: {
+            prompt: newPrompt,
+            occasion: newOccasion,
+            recipientName: currentDraft.recipientName || undefined,
+            senderName: currentDraft.senderName || undefined,
+            model: prefsRef.current.chat,
+          },
+        })
+          .then((r) => {
+            setDraft((d) => ({ ...d, message: r.message }));
+            // Re-render the coded card with the fresh message baked in.
+            if (targetMedium === "code") {
+              void regenerateCode({
+                mode: draftRef.current.codeSpec ? "edit" : "ai",
+                message: r.message,
+              });
+            }
+          })
+          .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
+          .finally(() => setMsgLoading(false));
       }
-    }
-  }, [msgFn, regenerateImage, regenerateCode]);
 
-  useEffect(() => { commitPlanRef.current = commitPlan; }, [commitPlan]);
+      if (targetMedium === "art") {
+        if (!newPrompt.trim()) {
+          toast.error("Add a description of the card before building.");
+          return;
+        }
+        void regenerateImage(newPrompt, newOccasion ?? undefined);
+      } else {
+        const hint = plan.codeTemplate;
+        const templateHint = (hint && hint !== "ai" ? hint : undefined) as
+          | Exclude<TemplateId, "ai">
+          | undefined;
+        const motionHint = plan.codeMotion ?? undefined;
+        const paletteHint = plan.codePalette ?? undefined;
+        const messageForCard = nextMessage || undefined;
+        const freshDesign = wantsFreshCodeDesign(plan.instruction);
+
+        // If we already have a code spec, iterate for small tweaks; rebuild from scratch for variation requests.
+        if (currentDraft.codeSpec && !freshDesign) {
+          void regenerateCode({
+            mode: "edit",
+            templateHint,
+            motionHint,
+            paletteHint,
+            instruction: plan.instruction,
+            message: messageForCard,
+          });
+        } else {
+          void regenerateCode({
+            mode: "ai",
+            templateHint,
+            motionHint,
+            paletteHint,
+            message: messageForCard,
+          });
+        }
+      }
+    },
+    [msgFn, regenerateImage, regenerateCode],
+  );
+
+  useEffect(() => {
+    commitPlanRef.current = commitPlan;
+  }, [commitPlan]);
 
   async function editorBuild() {
-    if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
+    if (!draft.medium) {
+      toast.error("Pick Art or Code first.");
+      return;
+    }
     const p = draft.prompt.trim();
-    if (!p) { toast.error("Describe the card you want first."); return; }
+    if (!p) {
+      toast.error("Describe the card you want first.");
+      return;
+    }
     setMsgLoading(true);
     if (draft.medium === "art") {
       void regenerateImage(p, draft.occasion);
@@ -349,16 +399,22 @@ function Create() {
       void regenerateCode({ mode: "ai" });
     }
     try {
-      const r = await msgFn({ data: {
-        prompt: p, occasion: draft.occasion,
-        recipientName: draft.recipientName || undefined,
-        senderName: draft.senderName || undefined,
-        model: prefsRef.current.chat,
-      }});
+      const r = await msgFn({
+        data: {
+          prompt: p,
+          occasion: draft.occasion,
+          recipientName: draft.recipientName || undefined,
+          senderName: draft.senderName || undefined,
+          model: prefsRef.current.chat,
+        },
+      });
 
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code") {
-        void regenerateCode({ mode: draftRef.current.codeSpec ? "edit" : "ai", message: r.message });
+        void regenerateCode({
+          mode: draftRef.current.codeSpec ? "edit" : "ai",
+          message: r.message,
+        });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Message generation failed");
@@ -368,23 +424,33 @@ function Create() {
   }
 
   async function rewriteMessage() {
-    const p = draft.prompt.trim(); if (!p) return;
+    const p = draft.prompt.trim();
+    if (!p) return;
     setMsgLoading(true);
     try {
-      const r = await msgFn({ data: {
-        prompt: p, occasion: draft.occasion,
-        recipientName: draft.recipientName || undefined,
-        senderName: draft.senderName || undefined,
-        model: prefsRef.current.chat,
-      }});
+      const r = await msgFn({
+        data: {
+          prompt: p,
+          occasion: draft.occasion,
+          recipientName: draft.recipientName || undefined,
+          senderName: draft.senderName || undefined,
+          model: prefsRef.current.chat,
+        },
+      });
 
       setDraft((d) => ({ ...d, message: r.message }));
       if (draft.medium === "code" && draftRef.current.codeSpec) {
-        void regenerateCode({ mode: "edit", message: r.message, instruction: "Refresh with the updated message." });
+        void regenerateCode({
+          mode: "edit",
+          message: r.message,
+          instruction: "Refresh with the updated message.",
+        });
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed");
-    } finally { setMsgLoading(false); }
+    } finally {
+      setMsgLoading(false);
+    }
   }
 
   function setMedium(m: Medium) {
@@ -409,39 +475,55 @@ function Create() {
   }
 
   function shufflePalette() {
-    const spec = draft.codeSpec; if (!spec) return;
+    const spec = draft.codeSpec;
+    if (!spec) return;
     const others = TEMPLATES.flatMap((t) => t.palette);
     const shuffled = [...spec.palette].sort(() => Math.random() - 0.5);
     shuffled[1] = others[Math.floor(Math.random() * others.length)];
     shuffled[shuffled.length - 1] = others[Math.floor(Math.random() * others.length)];
-    setDraft((d) => ({ ...d, codeSpec: { ...spec, palette: shuffled, seed: Math.floor(Math.random() * 1e6) } }));
+    setDraft((d) => ({
+      ...d,
+      codeSpec: { ...spec, palette: shuffled, seed: Math.floor(Math.random() * 1e6) },
+    }));
   }
 
   async function send() {
-    if (!draft.medium) { toast.error("Pick Art or Code first."); return; }
+    if (!draft.medium) {
+      toast.error("Pick Art or Code first.");
+      return;
+    }
     if (draft.medium === "art" && (!image || !isFinalImage)) {
-      toast.error("Wait for the image to finish rendering."); return;
+      toast.error("Wait for the image to finish rendering.");
+      return;
     }
     if (draft.medium === "code" && !draft.codeSpec) {
-      toast.error("Build the coded card first."); return;
+      toast.error("Build the coded card first.");
+      return;
     }
-    if (!draft.message.trim()) { toast.error("The card has no message yet."); return; }
-    if (!draft.recipientName.trim() || !draft.recipientEmail.trim()) { toast.error("Add recipient name and email."); return; }
+    if (!draft.message.trim()) {
+      toast.error("The card has no message yet.");
+      return;
+    }
+    if (!draft.recipientName.trim()) {
+      toast.error("Add recipient name.");
+      return;
+    }
     setSending(true);
     try {
-      const { id } = await saveFn({ data: {
-        prompt: draft.prompt.trim() || "custom",
-        occasion: draft.occasion,
-        message: draft.message.trim(),
-        medium: draft.medium,
-        imageDataUrl: draft.medium === "art" ? image ?? undefined : undefined,
-        codeSpec: draft.medium === "code" ? draft.codeSpec : undefined,
-        senderName: draft.senderName.trim() || undefined,
-        recipientName: draft.recipientName.trim(),
-        recipientEmail: draft.recipientEmail.trim(),
-      }});
-      await sendFn({ data: { cardId: id } });
-      toast.success("Card sent!");
+      const { id } = await saveFn({
+        data: {
+          prompt: draft.prompt.trim() || "custom",
+          occasion: draft.occasion,
+          message: draft.message.trim(),
+          medium: draft.medium,
+          imageDataUrl: draft.medium === "art" ? (image ?? undefined) : undefined,
+          codeSpec: draft.medium === "code" ? draft.codeSpec : undefined,
+          senderName: draft.senderName.trim() || undefined,
+          recipientName: draft.recipientName.trim(),
+          recipientEmail: draft.recipientEmail.trim() || undefined,
+        },
+      });
+      toast.success("Card link created");
       navigate({ to: "/card/$id", params: { id } });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to send");
@@ -504,7 +586,6 @@ function Create() {
                 </div>
               </div>
             </div>
-
 
             {mode === "chat" ? (
               <ChatPanel
@@ -603,7 +684,11 @@ function Create() {
                   }
                   fullscreenContent={
                     draft.medium === "code" && draft.codeSpec ? (
-                      <CodedCard spec={draft.codeSpec} awaitTap recipientName={draft.recipientName || undefined} />
+                      <CodedCard
+                        spec={draft.codeSpec}
+                        awaitTap
+                        recipientName={draft.recipientName || undefined}
+                      />
                     ) : draft.medium === "art" && image ? (
                       <img src={image} alt="Card preview" className="h-full w-full object-cover" />
                     ) : undefined
@@ -629,8 +714,12 @@ function Create() {
                     ) : (
                       <div className="grid h-full place-items-center text-sm text-muted-foreground">
                         {imgLoading ? (
-                          <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
-                        ) : "Approve the draft in the chat to paint your card."}
+                          <span className="inline-flex items-center gap-2">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Painting…
+                          </span>
+                        ) : (
+                          "Approve the draft in the chat to paint your card."
+                        )}
                       </div>
                     )
                   ) : draft.codeSpec ? (
@@ -638,8 +727,12 @@ function Create() {
                   ) : (
                     <div className="grid h-full place-items-center text-sm text-muted-foreground">
                       {codeLoading ? (
-                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Writing the code…</span>
-                      ) : "Approve the draft in the chat to code your card."}
+                        <span className="inline-flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" /> Writing the code…
+                        </span>
+                      ) : (
+                        "Approve the draft in the chat to code your card."
+                      )}
                     </div>
                   )}
                 </PreviewCanvas>
@@ -674,7 +767,7 @@ function Create() {
                   value={draft.recipientEmail}
                   onChange={(e) => setDraft((d) => ({ ...d, recipientEmail: e.target.value }))}
                   type="email"
-                  placeholder="Recipient email"
+                  placeholder="Recipient email (optional)"
                   className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary/50"
                 />
                 <button
@@ -687,8 +780,12 @@ function Create() {
                   }
                   className="inline-flex items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
                 >
-                  {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  Send
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                  Create link
                 </button>
               </div>
             </div>
@@ -713,16 +810,25 @@ function PlanCard({
   const proposedMedium = plan.medium ?? medium;
   const rows: Array<[string, string]> = [];
   if (plan.occasion) rows.push(["Occasion", plan.occasion]);
-  if (proposedMedium) rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
+  if (proposedMedium)
+    rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
   if (proposedMedium === "code" && plan.codeTemplate) rows.push(["Template", plan.codeTemplate]);
   if (proposedMedium === "code" && plan.codeMotion) rows.push(["Motion", plan.codeMotion]);
-  if (plan.prompt) rows.push(["Vibe", plan.prompt.length > 90 ? plan.prompt.slice(0, 87) + "…" : plan.prompt]);
+  if (plan.prompt)
+    rows.push(["Vibe", plan.prompt.length > 90 ? plan.prompt.slice(0, 87) + "…" : plan.prompt]);
   if (plan.recipientName) rows.push(["For", plan.recipientName]);
   if (plan.senderName) rows.push(["From", plan.senderName]);
-  if (plan.message) rows.push(["Message", plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message]);
+  if (plan.message)
+    rows.push([
+      "Message",
+      plan.message.length > 90 ? plan.message.slice(0, 87) + "…" : plan.message,
+    ]);
 
   const disabled = plan.built || building;
-  const paletteSwatches = proposedMedium === "code" && plan.codePalette && plan.codePalette.length > 0 ? plan.codePalette : null;
+  const paletteSwatches =
+    proposedMedium === "code" && plan.codePalette && plan.codePalette.length > 0
+      ? plan.codePalette
+      : null;
 
   return (
     <div className="ml-2 mt-2 max-w-[90%] overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[0_16px_40px_-24px_rgba(0,0,0,0.3)]">
@@ -767,7 +873,11 @@ function PlanCard({
           disabled={disabled}
           className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
         >
-          {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          {building ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Check className="h-3.5 w-3.5" />
+          )}
           {plan.built ? "Approved & built" : building ? "Building…" : "Approve & build"}
         </button>
         {!plan.built && (
@@ -806,14 +916,16 @@ function ChatPanel({
   const hadPrefill = useRef(!!initialText.trim());
 
   useEffect(() => {
-    textareaRef.current = document.querySelector<HTMLTextAreaElement>('textarea[data-slot="prompt-input-textarea"]') ?? null;
+    textareaRef.current =
+      document.querySelector<HTMLTextAreaElement>('textarea[data-slot="prompt-input-textarea"]') ??
+      null;
     if (hadPrefill.current && !medium) {
       // Draw the eye to the medium picker first when arriving with a prefilled prompt.
       mediumPickerRef.current?.focus();
     } else {
       textareaRef.current?.focus();
     }
-  }, []);
+  }, [medium, mediumPickerRef]);
 
   useEffect(() => {
     if (!busy) textareaRef.current?.focus();
@@ -839,7 +951,12 @@ function ChatPanel({
                 )}
               </Message>
               {m.planId && pendingPlan && pendingPlan.id === m.planId && (
-                <PlanCard plan={pendingPlan} medium={medium} onBuild={onBuild} building={building} />
+                <PlanCard
+                  plan={pendingPlan}
+                  medium={medium}
+                  onBuild={onBuild}
+                  building={building}
+                />
               )}
             </div>
           ))}
@@ -857,7 +974,10 @@ function ChatPanel({
           onSubmit={(msg) => {
             const t = msg.text.trim();
             if (!t) return;
-            if (!medium) { toast.error("Pick Art or Code above first."); return; }
+            if (!medium) {
+              toast.error("Pick Art or Code above first.");
+              return;
+            }
             setText("");
             onSend(t);
           }}
@@ -865,7 +985,11 @@ function ChatPanel({
           <PromptInputTextarea
             value={text}
             onChange={(e) => setText(e.target.value)}
-            placeholder={medium ? "Describe your card, or ask for changes…" : "Pick Art or Code above, then describe your card…"}
+            placeholder={
+              medium
+                ? "Describe your card, or ask for changes…"
+                : "Pick Art or Code above, then describe your card…"
+            }
             disabled={busy}
           />
 
@@ -882,14 +1006,11 @@ function ChatPanel({
               <ArrowUp className="h-4 w-4" />
             </PromptInputSubmit>
           </PromptInputFooter>
-
         </PromptInput>
       </div>
-
     </div>
   );
 }
-
 
 function EditorPanel({
   draft,
@@ -907,7 +1028,10 @@ function EditorPanel({
   setMedium: (m: Medium) => void;
   onBuild: () => void;
   onRewriteMessage: () => void;
-  onRegenerateCode: (opts: { mode: "template" | "ai"; templateHint?: Exclude<TemplateId, "ai"> }) => void;
+  onRegenerateCode: (opts: {
+    mode: "template" | "ai";
+    templateHint?: Exclude<TemplateId, "ai">;
+  }) => void;
   imgLoading: boolean;
   msgLoading: boolean;
   codeLoading: boolean;
@@ -949,7 +1073,9 @@ function EditorPanel({
           {OCCASIONS.map((o) => (
             <button
               key={o}
-              onClick={() => setDraft((d) => ({ ...d, occasion: d.occasion === o ? undefined : o }))}
+              onClick={() =>
+                setDraft((d) => ({ ...d, occasion: d.occasion === o ? undefined : o }))
+              }
               className={`rounded-full border px-2.5 py-1 text-xs transition ${draft.occasion === o ? "border-primary bg-primary/20 text-foreground" : "border-border text-muted-foreground hover:text-foreground"}`}
             >
               {o}
@@ -968,7 +1094,9 @@ function EditorPanel({
 
       {draft.medium === "code" && (
         <div>
-          <label className="text-xs uppercase tracking-wide text-muted-foreground">Coded template</label>
+          <label className="text-xs uppercase tracking-wide text-muted-foreground">
+            Coded template
+          </label>
           <div className="mt-2 flex flex-wrap gap-1.5">
             {TEMPLATES.map((t) => (
               <button
@@ -1023,13 +1151,19 @@ function EditorPanel({
           disabled={msgLoading || !draft.prompt.trim()}
           className="mt-2 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
         >
-          {msgLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+          {msgLoading ? (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          ) : (
+            <RefreshCw className="h-3 w-3" />
+          )}
           Rewrite message only
         </button>
       </div>
 
       <div>
-        <label className="text-xs uppercase tracking-wide text-muted-foreground">Your name (optional)</label>
+        <label className="text-xs uppercase tracking-wide text-muted-foreground">
+          Your name (optional)
+        </label>
         <input
           value={draft.senderName}
           onChange={(e) => setDraft((d) => ({ ...d, senderName: e.target.value }))}

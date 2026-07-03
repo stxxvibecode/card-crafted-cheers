@@ -88,12 +88,9 @@ export function PreviewCanvas({
   const scaledH = Math.round(baseH * scale);
 
   const stage = (
-    <div
-      className="relative"
-      style={{ width: scaledW, height: scaledH, flex: "none" }}
-    >
+    <div className="relative" style={{ width: scaledW, height: scaledH, flex: "none" }}>
       <div
-        className="absolute left-0 top-0 overflow-hidden rounded-2xl border border-border bg-background shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]"
+        className="absolute left-0 top-0 overflow-visible rounded-2xl border border-border bg-background shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]"
         style={{
           width: baseW,
           height: baseH,
@@ -185,8 +182,11 @@ export function PreviewCanvas({
             </div>
             <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-4 sm:items-center sm:p-8">
               <div
-                className="w-full overflow-hidden rounded-3xl border border-border shadow-[0_60px_140px_-50px_rgba(0,0,0,0.6)]"
-                style={{ maxWidth: `min(92vw, calc((100dvh - 140px) / ${aspectRatio}))`, aspectRatio: `1 / ${aspectRatio}` }}
+                className="w-full overflow-visible rounded-3xl border border-border shadow-[0_60px_140px_-50px_rgba(0,0,0,0.6)]"
+                style={{
+                  maxWidth: `min(92vw, calc((100dvh - 140px) / ${aspectRatio}))`,
+                  aspectRatio: `1 / ${aspectRatio}`,
+                }}
               >
                 {fullscreenContent ?? children}
               </div>
