@@ -5,7 +5,9 @@ import { phraseFor } from "./occasion";
 import { lavaChat } from "./lava.server";
 
 const PriorSchema = z.object({
-  template: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"]).optional(),
+  template: z
+    .enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons", "ai"])
+    .optional(),
   palette: z.array(z.string()).max(5).optional(),
   tempo: z.number().optional(),
   source: z.string().max(20_000).optional(),
@@ -17,7 +19,9 @@ const Input = z.object({
   phrase: z.string().max(80).optional(),
   message: z.string().max(600).optional(),
   mode: z.enum(["template", "ai", "edit"]),
-  templateHint: z.enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons"]).optional(),
+  templateHint: z
+    .enum(["confetti", "fireworks", "kinetic", "hearts", "starfield", "ribbons"])
+    .optional(),
   motionHint: z.string().max(120).optional(),
   paletteHint: z.array(z.string()).max(5).optional(),
   instruction: z.string().max(500).optional(),
@@ -27,26 +31,35 @@ const Input = z.object({
 
 const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
 
-
 const CODE_SYSTEM = `PIGEON CARD BUILDER — PRODUCT SPEC
-You are the AI card builder inside Pigeon, an e-card creation platform. Think like a product designer, front-end engineer, motion designer, and copywriter at the same time. Turn the sender's short idea into a beautiful, interactive, coded e-card. If details are missing, infer tasteful defaults — do not make the experience feel complicated.
+You are the Design Engineer inside Pigeon, an AI-powered e-card platform. You combine product design taste, front-end engineering rigor, motion direction, accessibility, and copy judgment. Your output is production UI code, not a sketch. Treat every card as if it will be opened by one real recipient on a phone and screenshot by the sender.
 
 Every card must land:
 - a clear occasion cue in the composition
 - the sender's personalized message rendered legibly
 - a strong visual direction (one committed idea, not a hedge)
 - a mobile-first, responsive layout that reads on a phone
+- a layout that preserves the full intended card inside the square stage without accidental clipping of text
 - lightweight animation used for delight, not distraction
 - clean, semantic DOM
 - a still, legible FINAL FRAME the recipient can screenshot or share (the animation MUST resolve to a calm, readable end state; a seamless loop is fine only if the loop itself reads as a keepsake)
 
-Design principles: personal, modern, emotionally intentional. Avoid generic greeting-card clichés unless the sender asked for them. Readability > cleverness. Prioritize spacing, hierarchy, and a strong emotional payoff on reveal. WCAG-legible contrast against palette[0].
+Design principles: personal, modern, emotionally intentional. Avoid generic greeting-card clichés unless the sender asked for them. Readability > cleverness. Prioritize spacing, hierarchy, and a strong emotional payoff on reveal. WCAG-legible contrast against palette[0]. If the provided palette cannot support contrast, derive readable ink/accent colors from it rather than using unreadable values.
+
+DESIGN ENGINEERING STANDARD
+Ship like a meticulous design engineer:
+- Use a clear composition system: grid, axis, focal point, quiet space, typographic hierarchy.
+- Keep all essential text inside safe margins. Nothing important may sit flush to an edge or depend on overflow.
+- Use responsive units (%, vmin, clamp, min/max) so the card survives 320px mobile and larger desktop preview sizes.
+- Prefer one polished custom motif over many generic decorations.
+- Use DOM/SVG/CSS carefully: no layout thrash, no heavyweight particle storms, no fragile absolute coordinates for text.
+- The final frame must be visually balanced, readable, and specific to the sender's brief.
 
 RUNTIME NOTE
 The Pigeon runtime already wraps your card in a tap-to-open gate for the recipient. DO NOT build your own splash / envelope / "click here" step — assume your animation starts on mount and the recipient has already opted in. Ease in over 600-1200ms, then land the composition.
 
 ROLE (design layer)
-You are a senior motion designer at a studio known for bespoke, editorial digital keepsakes. You ship ONE hand-crafted animated greeting card as a self-contained JavaScript function body. Every card is a one-of-one piece designed for THIS specific occasion, phrase, and message — not a reusable component, not a screensaver, not a template.
+You are a senior design engineer at a studio known for bespoke, editorial digital keepsakes. You ship ONE hand-crafted animated greeting card as a self-contained JavaScript function body. Every card is a one-of-one piece designed for THIS specific occasion, phrase, and message — not a reusable component, not a screensaver, not a template. Your code should look intentional enough that another engineer could maintain it and another designer would not ask for a polish pass.
 
 INVOCATION CONTRACT
 Your function body is invoked with:
@@ -65,6 +78,8 @@ HARD ANTI-PATTERNS (the model reflexively produces these — DO NOT)
 - Centered flex column with serif headline + smaller italic message + drifting circles/particles behind. This is the house default. Refuse it.
 - Rainbow confetti dumps or "50 particles bouncing" as a stand-in for design.
 - Generic sans headlines. Symmetric mirrored layouts with no focal point.
+- Tiny unreadable message text, low-contrast text, text hidden under moving shapes, or text clipped by overflow.
+- Decorative backgrounds that look unrelated to the occasion or overpower the personal note.
 - Motion that has no relationship to the occasion (starfield on a birthday, confetti on a condolence).
 - Two competing motion ideas hedged together. Pick one.
 - Building your own "tap to open" / envelope splash — the runtime already provides that.
@@ -95,6 +110,8 @@ TYPOGRAPHY BAR
 - Support / label / date / ordinal: mono or geometric sans, ~11-13px, uppercase, letter-spacing 0.18em, opacity ~0.7.
 - Message: clamp(0.95rem, 1.6vw, 1.2rem), italic OR upright depending on the move, max-width 34-40ch, opacity 0.75-0.9.
 - Contrast check: light bg → dark type; dark bg → light type. Use palette intentionally; one dominant accent, others support.
+- Use line-height 1.25-1.6 for readable message text. Do not set message opacity below 0.72.
+- Use max-widths and safe padding so long messages wrap cleanly instead of overflowing.
 
 MOTION
 - ONE motion idea, executed well. Ease-in on mount (600-1200ms), then a seamless loop. Scale every duration by tempo.
@@ -117,9 +134,12 @@ TECHNICAL RULES
 - requestAnimationFrame for motion. %, vmin, clamp() — no fixed pixel layout.
 - Under 5500 characters. No strobing (>4Hz).
 - When message is non-empty, BOTH phrase and message must render legibly; when empty, render only phrase.
+- You must reference the runtime variables \`phrase\` and \`message\` directly. Never hard-code the visible headline or personal note.
+- Avoid \`overflow:hidden\` on text containers. Only use clipping on purely decorative layers when it cannot crop text.
+- If using Canvas, overlay DOM text for phrase/message so accessibility and readability are preserved.
 
 SELF-CHECK (silently, before returning)
-(a) Did I pick ONE design move and commit? (b) If I swapped this phrase for a different occasion's phrase, would the piece still look bespoke? If yes, redesign. (c) Is more than ~55% of the canvas quiet/empty? Good. (d) Does the still frame read as a card for THIS occasion? (e) Am I secretly reproducing the centered-serif-with-particles default? If yes, redo.
+(a) Did I pick ONE design move and commit? (b) If I swapped this phrase for a different occasion's phrase, would the piece still look bespoke? If yes, redesign. (c) Is more than ~55% of the canvas quiet/empty? Good. (d) Does the still frame read as a card for THIS occasion? (e) Are phrase and message both visible, readable, and safely inside the composition? (f) Would this look polished at 320px wide? (g) Am I secretly reproducing the centered-serif-with-particles default? If yes, redo.
 
 MINIMAL SKELETON (structure only — DO NOT copy layout choices)
 // MOVE: <pick-one>
@@ -191,12 +211,12 @@ RULES
 - The runtime supplies the tap-to-open gate — never add your own splash / envelope / "click to reveal" step.
 - Both phrase and message must render when message is non-empty (phrase large, message smaller, wrapped underneath or beside per the composition).
 - The animation MUST resolve to a still, legible final frame (or a calm keepsake-worthy loop).
+- Operate like a design engineer: preserve layout intent, fix spacing/contrast/hierarchy, and keep text safe from clipping.
 - Change ONLY what the sender asked for. Preserve the design move (line 1 comment), composition, motion identity, palette, and tempo unless the request implies otherwise.
 - If the request is vague ("make it nicer"), improve hierarchy, typography, and negative space — do NOT drift toward the centered-serif-with-particles default.
 - Never regress an editorial / wordmark / split / diagonal composition back to a centered flex column with background particles.
-- Mobile-first: use %, vmin, clamp() — no fixed pixel layout. Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
+- Mobile-first: use %, vmin, clamp() — no fixed pixel layout for essential text. Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
 - Contrast check after any palette change: phrase must stay legible on palette[0].`;
-
 
 async function callChat(
   model: string | undefined,
@@ -217,7 +237,8 @@ async function callChat(
     // retry once on a known-good default so the user still gets a card.
     const msg = e instanceof Error ? e.message : String(e);
     const empty = /empty response|hit its output cap|refused this prompt/i.test(msg);
-    const transient = /Lava (5\d\d|429)|provider_response_error|Failed to parse provider response/i.test(msg);
+    const transient =
+      /Lava (5\d\d|429)|provider_response_error|Failed to parse provider response/i.test(msg);
     if ((empty || transient) && model && model !== "gemini-2.5-flash") {
       return await lavaChat("gemini-2.5-flash", messages, { json: opts?.json, maxTokens });
     }
@@ -230,10 +251,11 @@ async function callChat(
   }
 }
 
-
-
 function stripFences(s: string): string {
-  return s.replace(/^```[a-zA-Z]*\n?/, "").replace(/```$/, "").trim();
+  return s
+    .replace(/^```[a-zA-Z]*\n?/, "")
+    .replace(/```$/, "")
+    .trim();
 }
 
 function cleanPalette(input: string[] | undefined, fallback: string[]): string[] {
@@ -244,13 +266,24 @@ function cleanPalette(input: string[] | undefined, fallback: string[]): string[]
 // ---------------- Self-check: detect repeats & anti-patterns ----------------
 
 const KNOWN_MOVES = [
-  "poster-grid", "editorial-split", "wordmark-as-hero", "cinema-letterbox",
-  "ticker", "marquee", "constellation", "ink-bloom", "watercolor-bloom",
-  "ribbon-sweep", "silk-sweep", "particle-burst", "monospace-grid",
-  "full-bleed-type", "diagonal-band",
+  "poster-grid",
+  "editorial-split",
+  "wordmark-as-hero",
+  "cinema-letterbox",
+  "ticker",
+  "marquee",
+  "constellation",
+  "ink-bloom",
+  "watercolor-bloom",
+  "ribbon-sweep",
+  "silk-sweep",
+  "particle-burst",
+  "monospace-grid",
+  "full-bleed-type",
+  "diagonal-band",
 ] as const;
 
-type KnownMove = typeof KNOWN_MOVES[number];
+type KnownMove = (typeof KNOWN_MOVES)[number];
 
 type VariationProfile = {
   move: KnownMove;
@@ -332,7 +365,11 @@ function pickFrom<T>(items: readonly T[], seed: number, salt: number): T {
   return items[n % items.length];
 }
 
-function buildVariationProfile(seed: number, occasion: string | undefined, extraAvoid: string[] = []): VariationProfile {
+function buildVariationProfile(
+  seed: number,
+  occasion: string | undefined,
+  extraAvoid: string[] = [],
+): VariationProfile {
   const recent = recentMoves.get(bucketKey(occasion)) ?? [];
   const avoid = new Set([...recent, ...extraAvoid]);
   const available = KNOWN_MOVES.filter((m) => !avoid.has(m));
@@ -360,10 +397,13 @@ function variationBrief(profile: VariationProfile, occasion: string | undefined)
     `- Motion motif: ${profile.motion}`,
     `- Density: ${profile.density}`,
     `- Message placement: ${profile.messagePlacement}`,
+    "- Design-engineering bar: safe margins, readable contrast, mobile-first scaling, no clipped text, one polished motif.",
     recent.length ? `- Recently used moves to avoid: ${recent.join(", ")}` : null,
     signatures.length ? `- Recent layout signatures to avoid: ${signatures.join(" | ")}` : null,
     "This card must look visibly different from recent cards for the same occasion.",
-  ].filter(Boolean).join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 function bucketKey(occasion?: string) {
@@ -379,23 +419,50 @@ function extractMove(source: string): string | null {
 function detectLayoutSignature(source: string): string {
   const s = source.toLowerCase();
   const move = extractMove(source) ?? "unknown";
-  const centered = /alignitems\s*:\s*['"]center['"]/i.test(source) || /textalign\s*:\s*['"]center['"]/i.test(source);
-  const split = /(width\s*:\s*['"](?:4[5-9]|5\d|6\d)%|gridtemplatecolumns|60\/40|50\/50)/i.test(source);
+  const centered =
+    /alignitems\s*:\s*['"]center['"]/i.test(source) ||
+    /textalign\s*:\s*['"]center['"]/i.test(source);
+  const split = /(width\s*:\s*['"](?:4[5-9]|5\d|6\d)%|gridtemplatecolumns|60\/40|50\/50)/i.test(
+    source,
+  );
   const diagonal = /(rotate\(|skew|diagonal|clip-path|polygon)/i.test(source);
   const edgeType = /(14vw|12vw|full-bleed|edge-to-edge|lineheight\s*:\s*0\.9)/i.test(source);
   const bottomMessage = /(bottom\s*:\s*['"](?:4|5|6|7|8|9|10)%|footer|caption block)/i.test(source);
-  const sideMessage = /(right\s*:\s*['"](?:4|5|6|7|8|9|10)%|left\s*:\s*['"](?:4|5|6|7|8|9|10)%)/i.test(source) && /maxwidth/i.test(source);
+  const sideMessage =
+    /(right\s*:\s*['"](?:4|5|6|7|8|9|10)%|left\s*:\s*['"](?:4|5|6|7|8|9|10)%)/i.test(source) &&
+    /maxwidth/i.test(source);
   const circles = (source.match(/createElementNS\([^)]*,\s*['"]circle['"]\)/g) ?? []).length;
   const paths = (source.match(/createElementNS\([^)]*,\s*['"]path['"]\)/g) ?? []).length;
   const rects = (source.match(/createElementNS\([^)]*,\s*['"]rect['"]\)/g) ?? []).length;
   const canvas = /canvas|getcontext\(['"]2d['"]\)/i.test(source);
-  const font = s.includes("cormorant") ? "cormorant"
-    : s.includes("instrument serif") ? "instrument"
-      : s.includes("fraunces") ? "fraunces"
-        : s.includes("georgia") ? "georgia" : "system";
-  const layout = diagonal ? "diagonal" : split ? "split" : edgeType ? "edge-type" : centered ? "centered" : "asym";
+  const font = s.includes("cormorant")
+    ? "cormorant"
+    : s.includes("instrument serif")
+      ? "instrument"
+      : s.includes("fraunces")
+        ? "fraunces"
+        : s.includes("georgia")
+          ? "georgia"
+          : "system";
+  const layout = diagonal
+    ? "diagonal"
+    : split
+      ? "split"
+      : edgeType
+        ? "edge-type"
+        : centered
+          ? "centered"
+          : "asym";
   const message = bottomMessage ? "msg-bottom" : sideMessage ? "msg-side" : "msg-other";
-  const motif = canvas ? "canvas" : circles >= 4 ? "circles" : paths >= 2 ? "paths" : rects >= 3 ? "rects" : "dom";
+  const motif = canvas
+    ? "canvas"
+    : circles >= 4
+      ? "circles"
+      : paths >= 2
+        ? "paths"
+        : rects >= 3
+          ? "rects"
+          : "dom";
   return `${move}/${layout}/${message}/${font}/${motif}`;
 }
 
@@ -403,22 +470,49 @@ function detectAntiPatterns(source: string): string[] {
   const issues: string[] = [];
   const s = source;
   // Centered flex column default
-  const centeredFlex = /flexDirection\s*:\s*['"]column['"]/i.test(s)
-    && /alignItems\s*:\s*['"]center['"]/i.test(s)
-    && /justifyContent\s*:\s*['"]center['"]/i.test(s);
+  const centeredFlex =
+    /flexDirection\s*:\s*['"]column['"]/i.test(s) &&
+    /alignItems\s*:\s*['"]center['"]/i.test(s) &&
+    /justifyContent\s*:\s*['"]center['"]/i.test(s);
   if (centeredFlex) issues.push("uses the centered flex column default layout");
   // Background particles / drifting circles pattern
   const manyCircles = (s.match(/createElementNS\([^)]*,\s*['"]circle['"]\)/g) ?? []).length;
-  if (manyCircles >= 6) issues.push(`renders ${manyCircles} SVG circles (looks like background particles)`);
-  const particleLoop = /for\s*\(\s*let\s+i\s*=\s*0[^)]*i\s*<\s*(?:2\d|[3-9]\d|\d{3,})/.test(s)
-    && /(circle|particle|dot|confetti)/i.test(s);
+  if (manyCircles >= 6)
+    issues.push(`renders ${manyCircles} SVG circles (looks like background particles)`);
+  const particleLoop =
+    /for\s*\(\s*let\s+i\s*=\s*0[^)]*i\s*<\s*(?:2\d|[3-9]\d|\d{3,})/.test(s) &&
+    /(circle|particle|dot|confetti)/i.test(s);
   if (particleLoop) issues.push("particle-swarm loop detected");
+  if (!/\bphrase\b/.test(s)) issues.push("does not reference the runtime phrase");
+  if (!/\bmessage\b/.test(s)) issues.push("does not reference the runtime message");
+  if (
+    /\b(fetch|XMLHttpRequest|eval|import\s*\(|require\s*\(|localStorage|sessionStorage|document\.cookie|window\.parent)\b/i.test(
+      s,
+    )
+  ) {
+    issues.push("uses a forbidden browser/API primitive");
+  }
+  if (/fontSize\s*:\s*['"](?:[1-9]|10)px['"]/i.test(s)) {
+    issues.push("uses text smaller than the readable minimum");
+  }
   // Missing MOVE comment
   if (!extractMove(s)) issues.push("missing `// MOVE: <name>` on line 1");
   return issues;
 }
 
-function selfCheck(source: string, occasion: string | undefined, profile?: VariationProfile): { ok: boolean; move: string | null; signature: string; issues: string[]; repeats: boolean; signatureRepeats: boolean; recent: string[] } {
+function selfCheck(
+  source: string,
+  occasion: string | undefined,
+  profile?: VariationProfile,
+): {
+  ok: boolean;
+  move: string | null;
+  signature: string;
+  issues: string[];
+  repeats: boolean;
+  signatureRepeats: boolean;
+  recent: string[];
+} {
   const move = extractMove(source);
   const issues = detectAntiPatterns(source);
   if (move && profile && move !== profile.move) {
@@ -429,7 +523,15 @@ function selfCheck(source: string, occasion: string | undefined, profile?: Varia
   const signature = detectLayoutSignature(source);
   const repeats = !!move && recent.includes(move);
   const signatureRepeats = recentSigs.includes(signature);
-  return { ok: issues.length === 0 && !repeats && !signatureRepeats, move, signature, issues, repeats, signatureRepeats, recent };
+  return {
+    ok: issues.length === 0 && !repeats && !signatureRepeats,
+    move,
+    signature,
+    issues,
+    repeats,
+    signatureRepeats,
+    recent,
+  };
 }
 
 function recordDesign(occasion: string | undefined, move: string | null, signature: string) {
@@ -440,7 +542,10 @@ function recordDesign(occasion: string | undefined, move: string | null, signatu
     recentMoves.set(key, next);
   }
   const sigs = recentSignatures.get(key) ?? [];
-  recentSignatures.set(key, [signature, ...sigs.filter((s) => s !== signature)].slice(0, RECENT_LIMIT));
+  recentSignatures.set(
+    key,
+    [signature, ...sigs.filter((s) => s !== signature)].slice(0, RECENT_LIMIT),
+  );
 }
 
 async function generateWithSelfCheck(
@@ -461,7 +566,7 @@ async function generateWithSelfCheck(
   }
 
   // Retry once with explicit forced-variety directive.
-  const forbid = Array.from(new Set([...(check.recent), ...(check.move ? [check.move] : [])]));
+  const forbid = Array.from(new Set([...check.recent, ...(check.move ? [check.move] : [])]));
   const retryProfile = buildVariationProfile(seed + 7919, occasion, forbid);
   const retryPrompt = [
     userPrompt,
@@ -470,12 +575,19 @@ async function generateWithSelfCheck(
     "",
     "SELF-CHECK FAILED on your previous attempt:",
     ...check.issues.map((i) => `- ${i}`),
-    check.repeats && check.move ? `- design move "${check.move}" was used recently; do NOT reuse it` : null,
-    check.signatureRepeats ? `- layout signature "${check.signature}" was used recently; change layout, typography, and message placement` : null,
+    check.repeats && check.move
+      ? `- design move "${check.move}" was used recently; do NOT reuse it`
+      : null,
+    check.signatureRepeats
+      ? `- layout signature "${check.signature}" was used recently; change layout, typography, and message placement`
+      : null,
     "",
     `Rewrite from scratch. You MUST use this exact first line: // MOVE: ${retryProfile.move}`,
     "Do NOT use a centered flex column. Do NOT dump background particles/circles. Commit to a distinct compositional anchor.",
-  ].filter(Boolean).join("\n");
+    "Design-engineer the final result: readable contrast, safe margins, no clipped phrase/message, mobile-first scaling, and one polished motion motif.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 
   const second = stripFences(await callChat(model, system, retryPrompt));
   const check2 = selfCheck(second, occasion, retryProfile);
@@ -504,19 +616,28 @@ export const generateCodedCard = createServerFn({ method: "POST" })
       if (prior?.source) {
         const user = [
           `Current card phrase (headline): "${finalPhrase}"`,
-          finalMessage ? `Current card message (personal note): """${finalMessage}"""` : `Current card message: (empty)`,
+          finalMessage
+            ? `Current card message (personal note): """${finalMessage}"""`
+            : `Current card message: (empty)`,
           `Current palette: ${JSON.stringify(prior.palette ?? [])}`,
           `Current tempo: ${prior.tempo ?? 1}`,
-          data.paletteHint?.length ? `Sender's palette suggestion: ${JSON.stringify(data.paletteHint)}` : null,
+          data.paletteHint?.length
+            ? `Sender's palette suggestion: ${JSON.stringify(data.paletteHint)}`
+            : null,
           data.motionHint ? `Motion feel: ${data.motionHint}` : null,
           `Sender's edit request: ${instruction}`,
           "",
           "--- CURRENT SOURCE ---",
           prior.source,
-        ].filter(Boolean).join("\n");
+        ]
+          .filter(Boolean)
+          .join("\n");
         const raw = await callChat(model, EDIT_SYSTEM, user);
         const source = stripFences(raw);
-        const palette = cleanPalette(data.paletteHint, prior.palette && prior.palette.length >= 3 ? prior.palette : TEMPLATES[0].palette);
+        const palette = cleanPalette(
+          data.paletteHint,
+          prior.palette && prior.palette.length >= 3 ? prior.palette : TEMPLATES[0].palette,
+        );
         return {
           template: "ai",
           palette,
@@ -529,7 +650,9 @@ export const generateCodedCard = createServerFn({ method: "POST" })
       }
 
       // Prior is a named template. Decide: palette/tempo tweak vs upgrade to AI source.
-      const currentTemplate = (prior?.template && prior.template !== "ai" ? prior.template : suggestTemplate(data.occasion)) as Exclude<TemplateId, "ai">;
+      const currentTemplate = (
+        prior?.template && prior.template !== "ai" ? prior.template : suggestTemplate(data.occasion)
+      ) as Exclude<TemplateId, "ai">;
       const templateBase = TEMPLATES.find((t) => t.id === currentTemplate)!;
 
       const DECISION_SCHEMA = {
@@ -552,23 +675,42 @@ export const generateCodedCard = createServerFn({ method: "POST" })
         `Sender's request: ${instruction}`,
         "",
         "If the request is a palette/tempo/template swap, action='tweak'. If it needs custom animation the templates can't do, action='rewrite'.",
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
       const decisionSys = `You decide how to apply an edit to a coded greeting card.
 Return JSON.
 - action='tweak': keep the template family, adjust palette (3-5 hex), tempo (0.5-2), and optionally swap template to one of: ${TEMPLATE_IDS.join(", ")}.
 - action='rewrite': the edit needs custom animation. Still return a fallback palette and tempo.
 palette[0] is background; ensure the phrase stays legible on it.`;
       const raw = await callChat(model, decisionSys, decisionUser, { json: true });
-      let parsed: { action: "tweak" | "rewrite"; template: string | null; palette: string[]; tempo: number } | null = null;
-      try { parsed = raw ? JSON.parse(raw) : null; } catch { /* ignore */ }
+      let parsed: {
+        action: "tweak" | "rewrite";
+        template: string | null;
+        palette: string[];
+        tempo: number;
+      } | null = null;
+      try {
+        parsed = raw ? JSON.parse(raw) : null;
+      } catch {
+        /* ignore */
+      }
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, templateBase.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? prior?.tempo ?? 1));
 
       if (parsed?.action === "tweak" || !parsed) {
-        const nextTemplate = (parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
-          ? parsed.template as Exclude<TemplateId, "ai">
-          : currentTemplate;
-        return { template: nextTemplate, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
+        const nextTemplate =
+          parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">)
+            ? (parsed.template as Exclude<TemplateId, "ai">)
+            : currentTemplate;
+        return {
+          template: nextTemplate,
+          palette,
+          phrase: finalPhrase,
+          message: finalMessage || undefined,
+          tempo,
+          seed,
+        };
       }
 
       // Rewrite path — generate fresh AI source.
@@ -584,6 +726,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
         `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
         `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
+        `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, no generic decorative filler.`,
         `SENDER'S EDIT REQUEST: ${instruction}`,
       ].join("\n");
 
@@ -636,18 +779,32 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
         data.paletteHint?.length ? `Palette hint: ${JSON.stringify(data.paletteHint)}` : null,
         `Phrase (must remain legible): "${finalPhrase}"`,
         data.templateHint ? `Sender prefers the ${data.templateHint} template.` : null,
-      ].filter(Boolean).join("\n");
+      ]
+        .filter(Boolean)
+        .join("\n");
 
       const raw = await callChat(model, system, user, { json: true }).catch(() => "");
       let parsed: { template: string; palette: string[]; tempo: number } | null = null;
-      try { parsed = raw ? JSON.parse(raw) : null; } catch { /* fall through */ }
+      try {
+        parsed = raw ? JSON.parse(raw) : null;
+      } catch {
+        /* fall through */
+      }
       const template = data.templateHint
         ? data.templateHint
-        : (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
-          ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
+        : parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">)
+          ? (parsed.template as Exclude<TemplateId, "ai">)
+          : fallbackId;
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));
-      return { template, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
+      return {
+        template,
+        palette,
+        phrase: finalPhrase,
+        message: finalMessage || undefined,
+        tempo,
+        seed,
+      };
     }
 
     // ------------------------------------------------------------------
@@ -667,9 +824,10 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
       `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
       `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
+      `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, no generic decorative filler.`,
     ].join("\n");
 
-      const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion, seed);
+    const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion, seed);
     return {
       template: "ai",
       palette,
