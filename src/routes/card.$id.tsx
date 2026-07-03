@@ -208,7 +208,7 @@ function IntroGate({
 
   return (
     <div
-      className={`flex min-h-dvh flex-col items-center justify-center gap-8 px-6 text-center transition-all duration-700 ${opening ? "scale-105 opacity-0" : "opacity-100"}`}
+      className={`relative flex min-h-dvh flex-col items-center justify-center gap-6 overflow-hidden px-4 py-8 text-center transition-all duration-700 sm:gap-8 sm:px-6 ${opening ? "scale-105 opacity-0" : "opacity-100"}`}
     >
       <div
         aria-hidden
@@ -226,7 +226,7 @@ function IntroGate({
           {card.occasion ? `A ${card.occasion.toLowerCase()} card` : "A card, hand-carried"}
         </p>
         <h1
-          className="text-4xl leading-tight sm:text-5xl"
+          className="text-3xl leading-tight sm:text-5xl"
           style={{ fontFamily: '"Instrument Serif", Georgia, serif', letterSpacing: "-0.01em" }}
         >
           {sender ? `${sender} sent you a card` : "Someone sent you a card"}
@@ -246,7 +246,7 @@ function IntroGate({
         type="button"
         onClick={onOpen}
         aria-label="Open your card"
-        className="group relative inline-flex min-h-14 items-center gap-3 rounded-full px-9 py-4 text-base font-medium outline-none transition focus-visible:ring-2"
+        className="group relative inline-flex min-h-14 w-full max-w-xs items-center justify-center gap-3 rounded-full px-8 py-4 text-base font-medium outline-none transition focus-visible:ring-2 sm:w-auto sm:max-w-none sm:px-9"
         style={{ background: ink, color: bg }}
       >
         <span
@@ -287,15 +287,15 @@ function RevealedCard({
   messageRef: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-4 pb-16 pt-6 sm:px-6">
+    <div className="mx-auto flex min-h-dvh w-full max-w-xl flex-col px-3 pb-12 pt-4 sm:px-6 sm:pb-16 sm:pt-6">
       {/* Card stage — fully visible, aspect preserved, never clipped */}
       <div
-        className={`w-full overflow-hidden rounded-3xl shadow-[0_60px_140px_-50px_rgba(0,0,0,0.55)] ${reducedMotion ? "" : "animate-[pigeon-reveal_900ms_cubic-bezier(0.2,0.7,0.2,1)_both]"}`}
+        className={`w-full overflow-hidden rounded-2xl shadow-[0_60px_140px_-50px_rgba(0,0,0,0.55)] sm:rounded-3xl ${reducedMotion ? "" : "animate-[pigeon-reveal_900ms_cubic-bezier(0.2,0.7,0.2,1)_both]"}`}
         style={{
           aspectRatio: "1 / 1",
-          maxHeight: "min(calc(100dvh - 96px), 640px)",
+          maxHeight: "min(calc(100dvh - 80px), 640px)",
           margin: "0 auto",
-          width: "min(100%, calc(100dvh - 96px), 640px)",
+          width: "min(100%, calc(100dvh - 80px), 640px)",
           border: `1px solid ${light ? "#00000018" : "#ffffff1e"}`,
         }}
       >
@@ -328,9 +328,9 @@ function RevealedCard({
           reducedMotion ? "" : "animate-[pigeon-rise_800ms_cubic-bezier(0.2,0.7,0.2,1)_600ms_both]"
         }
       >
-        <div className="mx-auto mt-10 max-w-prose text-center">
+        <div className="mx-auto mt-7 max-w-prose text-center sm:mt-10">
           <p
-            className="whitespace-pre-line text-2xl leading-snug sm:text-[1.7rem]"
+            className="whitespace-pre-line text-xl leading-snug sm:text-[1.7rem]"
             style={{ fontFamily: '"Instrument Serif", Georgia, serif', fontStyle: "italic" }}
           >
             {card.message}
@@ -459,7 +459,7 @@ function ActionArea({
   const sender = card.sender_name?.trim() || "the sender";
 
   return (
-    <div className="mx-auto mt-10 w-full max-w-md space-y-4">
+    <div className="mx-auto mt-8 w-full max-w-md space-y-4 sm:mt-10">
       {/* Reactions */}
       <div className="flex flex-wrap items-center justify-center gap-2">
         {REACTIONS[tone].map((emoji) => (
@@ -512,7 +512,7 @@ function ActionArea({
             className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:opacity-50"
             style={{ color: ink }}
           />
-          <div className="flex items-center justify-between px-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 px-1">
             <span className="text-[11px] opacity-50">Only {sender} will see this.</span>
             <button
               onClick={sendReply}

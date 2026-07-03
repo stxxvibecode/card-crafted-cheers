@@ -82,7 +82,7 @@ function Index() {
         <div className="absolute inset-0 bg-hero-glow" aria-hidden />
         <div className="absolute inset-0 bg-grid opacity-40" aria-hidden />
 
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 pt-16 pb-20 sm:px-6 sm:pt-24 sm:pb-28 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-3 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
           {/* Left: copy + chat */}
           <div>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground backdrop-blur">
@@ -90,18 +90,18 @@ function Index() {
               The unhurried e-card
             </div>
 
-            <h1 className="font-display text-5xl leading-[0.98] tracking-tight sm:text-7xl">
+            <h1 className="font-display text-4xl leading-[0.98] tracking-tight sm:text-7xl">
               <span className="block">Tell Pigeon</span>
               <span className="block italic text-gradient">who it&apos;s for.</span>
             </h1>
 
             <p className="mt-5 max-w-md text-base text-muted-foreground sm:text-lg">
-              Chat with Pigeon like you&apos;d text a friend. It writes the message,
-              paints the art — or codes a live animated card — and delivers it.
+              Chat with Pigeon like you&apos;d text a friend. It writes the message, paints the art
+              — or codes a live animated card — and delivers it.
             </p>
 
             {/* Chat window */}
-            <div className="mt-9 max-w-xl overflow-hidden rounded-3xl border border-border bg-card shadow-[0_40px_100px_-40px_oklch(0.22_0.015_60_/_0.3)]">
+            <div className="mt-7 max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-[0_40px_100px_-40px_oklch(0.22_0.015_60_/_0.3)] sm:mt-9 sm:rounded-3xl">
               {/* Chat header */}
               <div className="flex items-center gap-2.5 border-b border-border/60 bg-background/40 px-4 py-3">
                 <span className="grid h-7 w-7 place-items-center rounded-full border border-border bg-card">
@@ -123,14 +123,18 @@ function Index() {
                     <Bird className="h-3 w-3" strokeWidth={1.5} />
                   </span>
                   <div className="max-w-[85%] rounded-2xl rounded-bl-sm border border-border/60 bg-background/60 px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
-                    Hi! Who&apos;s the card for, and what&apos;s the occasion? I&apos;ll take it from there.
+                    Hi! Who&apos;s the card for, and what&apos;s the occasion? I&apos;ll take it
+                    from there.
                   </div>
                 </div>
               </div>
 
               {/* Composer */}
               <form
-                onSubmit={(e) => { e.preventDefault(); if (prompt.trim()) start(prompt.trim()); }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (prompt.trim()) start(prompt.trim());
+                }}
                 className="border-t border-border/60 p-3"
               >
                 <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-background px-3 py-2 focus-within:border-foreground/30">
@@ -159,16 +163,19 @@ function Index() {
                     <ArrowUp className="h-4 w-4" />
                   </button>
                 </div>
-                <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
-                  <span className="inline-flex items-center gap-3">
-                    <span className="inline-flex items-center gap-1"><Palette className="h-3 w-3" /> Art</span>
-                    <span className="inline-flex items-center gap-1"><Code2 className="h-3 w-3" /> Code</span>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
+                  <span className="inline-flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-1">
+                      <Palette className="h-3 w-3" /> Art
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Code2 className="h-3 w-3" /> Code
+                    </span>
                   </span>
                   <span>Enter to start</span>
                 </div>
               </form>
             </div>
-
           </div>
 
           {/* Right: card stack */}
@@ -188,7 +195,9 @@ function Index() {
               >
                 <div className="aspect-square w-full bg-[radial-gradient(circle_at_30%_25%,oklch(0.85_0.09_60),transparent_55%),radial-gradient(circle_at_75%_70%,oklch(0.78_0.1_320),transparent_50%),linear-gradient(160deg,oklch(0.93_0.04_80),oklch(0.82_0.06_250))]" />
                 <div className="px-4 py-3">
-                  <div className="font-display text-lg italic leading-tight">Happy birthday, Maya</div>
+                  <div className="font-display text-lg italic leading-tight">
+                    Happy birthday, Maya
+                  </div>
                   <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
                     <Palette className="h-3 w-3" /> Painted art
                   </div>
@@ -204,15 +213,20 @@ function Index() {
                   <div
                     className="absolute inset-0 opacity-90"
                     style={{
-                      background: "linear-gradient(120deg, oklch(0.55 0.2 300), oklch(0.65 0.18 200), oklch(0.7 0.16 140), oklch(0.55 0.2 300))",
+                      background:
+                        "linear-gradient(120deg, oklch(0.55 0.2 300), oklch(0.65 0.18 200), oklch(0.7 0.16 140), oklch(0.55 0.2 300))",
                       backgroundSize: "200% 200%",
                       animation: "pgn-shimmer 6s linear infinite",
                     }}
                   />
                   <div className="absolute inset-0 grid place-items-center px-5 text-center">
                     <div>
-                      <div className="font-display text-2xl italic leading-tight">Congrats, Leo!</div>
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.2em] opacity-70">№ 001 — for you</div>
+                      <div className="font-display text-2xl italic leading-tight">
+                        Congrats, Leo!
+                      </div>
+                      <div className="mt-1 text-[11px] uppercase tracking-[0.2em] opacity-70">
+                        № 001 — for you
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -227,7 +241,9 @@ function Index() {
                 style={{ animation: "pgn-float-c 9s ease-in-out 1.6s infinite" }}
               >
                 <div className="px-5 py-5">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Thank you</div>
+                  <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+                    Thank you
+                  </div>
                   <div className="mt-2 font-display text-xl italic leading-snug">
                     "You showed up when it mattered — and it mattered a lot."
                   </div>
@@ -243,12 +259,24 @@ function Index() {
 
       {/* How it works */}
       <section className="border-t border-border/60 bg-card/30">
-        <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <div className="mx-auto max-w-6xl px-3 py-12 sm:px-6 sm:py-16">
           <div className="grid gap-8 sm:grid-cols-3">
             {[
-              { n: "01", title: "Say who it's for", desc: "One sentence is plenty. Pigeon asks a follow-up if it helps." },
-              { n: "02", title: "Pick art or code", desc: "A painted illustration, or a live animated card written in code." },
-              { n: "03", title: "Send it on", desc: "They get a beautiful link that opens anywhere. No account needed." },
+              {
+                n: "01",
+                title: "Say who it's for",
+                desc: "One sentence is plenty. Pigeon asks a follow-up if it helps.",
+              },
+              {
+                n: "02",
+                title: "Pick art or code",
+                desc: "A painted illustration, or a live animated card written in code.",
+              },
+              {
+                n: "03",
+                title: "Send it on",
+                desc: "They get a beautiful link that opens anywhere. No account needed.",
+              },
             ].map(({ n, title, desc }) => (
               <div key={n} className="flex gap-4">
                 <span className="font-display text-3xl italic text-muted-foreground/50">{n}</span>
@@ -263,12 +291,24 @@ function Index() {
       </section>
 
       {/* Features */}
-      <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
+      <section className="mx-auto max-w-6xl px-3 py-14 sm:px-6 sm:py-20">
         <div className="grid gap-6 md:grid-cols-3">
           {[
-            { icon: Wand2, title: "One-of-a-kind art", desc: "Every card is painted fresh from your prompt. No stock photos, no repeats." },
-            { icon: Heart, title: "Words that land", desc: "AI drafts a warm, personal note. Edit it, or send it as-is." },
-            { icon: Mail, title: "Delivered by email", desc: "Enter a name and email. They get a beautiful link they can open anywhere." },
+            {
+              icon: Wand2,
+              title: "One-of-a-kind art",
+              desc: "Every card is painted fresh from your prompt. No stock photos, no repeats.",
+            },
+            {
+              icon: Heart,
+              title: "Words that land",
+              desc: "AI drafts a warm, personal note. Edit it, or send it as-is.",
+            },
+            {
+              icon: Mail,
+              title: "Delivered by email",
+              desc: "Enter a name and email. They get a beautiful link they can open anywhere.",
+            },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="rounded-2xl border border-border bg-card p-7">
               <span className="mb-5 inline-grid h-10 w-10 place-items-center rounded-full border border-border bg-background text-foreground">
@@ -282,9 +322,9 @@ function Index() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-4xl px-4 pb-24 text-center sm:px-6">
-        <div className="rounded-3xl border border-border bg-card p-12 sm:p-16">
-          <h2 className="font-display text-5xl italic sm:text-6xl">
+      <section className="mx-auto max-w-4xl px-3 pb-16 text-center sm:px-6 sm:pb-24">
+        <div className="rounded-2xl border border-border bg-card p-8 sm:rounded-3xl sm:p-16">
+          <h2 className="font-display text-4xl italic sm:text-6xl">
             <span className="text-gradient">Send something lovely.</span>
           </h2>
           <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground sm:text-base">

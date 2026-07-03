@@ -11,7 +11,7 @@ const DEVICE_WIDTHS: Record<DeviceMode, number> = {
   web: 900,
 };
 
-const SAFE_PADDING = 24;
+const SAFE_PADDING = 16;
 
 const DEVICE_OPTIONS: { mode: DeviceMode; label: string; Icon: typeof Smartphone }[] = [
   { mode: "mobile", label: "Mobile", Icon: Smartphone },
@@ -49,6 +49,11 @@ export function PreviewCanvas({
   const [zoom, setZoom] = useState<ZoomMode>("fit");
   const [device, setDevice] = useState<DeviceMode>("web");
   const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 639px)").matches) setDevice("mobile");
+  }, []);
 
   const measure = useCallback(() => {
     const el = viewportRef.current;
@@ -117,7 +122,7 @@ export function PreviewCanvas({
       {/* Canvas viewport — scrolls when the card is larger than the space. */}
       <div
         ref={viewportRef}
-        className="relative min-h-0 flex-1 overflow-auto rounded-t-3xl bg-[radial-gradient(circle_at_50%_30%,oklch(0.97_0.005_80),transparent_70%)] bg-muted/40 [background-size:22px_22px] [background-image:radial-gradient(oklch(0.85_0.01_80_/_0.5)_1px,transparent_1px)]"
+        className="relative min-h-0 flex-1 overflow-auto rounded-t-2xl bg-[radial-gradient(circle_at_50%_30%,oklch(0.97_0.005_80),transparent_70%)] bg-muted/40 [background-size:22px_22px] [background-image:radial-gradient(oklch(0.85_0.01_80_/_0.5)_1px,transparent_1px)] sm:rounded-t-3xl"
       >
         <div
           className="flex min-h-full min-w-full items-center justify-center"
@@ -128,8 +133,8 @@ export function PreviewCanvas({
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card/80 px-3 py-2 backdrop-blur">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <div className="grid gap-2 border-t border-border bg-card/80 px-2.5 py-2 backdrop-blur sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:px-3">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:justify-start">
           <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-[11px]">
             {(["fit", 0.75, 1, 1.25] as ZoomMode[]).map((z) => (
               <button
@@ -146,7 +151,7 @@ export function PreviewCanvas({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 sm:justify-end">
           <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-[11px]">
             {DEVICE_OPTIONS.map(({ mode, label, Icon }) => (
               <button

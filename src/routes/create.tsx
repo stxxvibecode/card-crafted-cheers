@@ -567,21 +567,21 @@ function Create() {
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:h-[calc(100vh-8rem)]">
+      <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
+        <div className="grid gap-4 lg:h-[calc(100vh-8rem)] lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-6">
           {/* Left: Chat / Editor panel */}
-          <div className="flex min-h-[600px] flex-col overflow-hidden rounded-2xl border border-border bg-card/60">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+          <div className="flex h-[min(58svh,540px)] min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card/60 sm:min-h-[480px] lg:h-auto lg:min-h-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
               <div className="flex items-center gap-2">
                 <Bird className="h-4 w-4 text-primary" />
                 <span className="font-display text-lg">Pigeon</span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 {mode === "chat" && (
                   <div
                     ref={mediumPickerRef}
                     tabIndex={-1}
-                    className={`inline-flex shrink-0 rounded-full border bg-background p-0.5 text-xs outline-none transition ${!draft.medium && !!initialPrompt?.trim() ? "border-foreground/40 ring-2 ring-foreground/20 animate-pulse" : "border-border"}`}
+                    className={`inline-flex shrink-0 rounded-full border bg-background p-0.5 text-xs outline-none transition ${!draft.medium && !!initialPrompt?.trim() ? "animate-pulse border-foreground/40 ring-2 ring-foreground/20" : "border-border"}`}
                   >
                     <button
                       type="button"
@@ -644,9 +644,9 @@ function Create() {
           </div>
 
           {/* Right: Preview + Send */}
-          <div className="flex min-h-[600px] flex-col gap-4">
+          <div className="flex min-h-[520px] flex-col gap-3 lg:min-h-0 lg:gap-4">
             {draft.medium === "code" && draft.codeSpec && (
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
                   <button
                     onClick={() => setPreviewTab("preview")}
@@ -661,7 +661,7 @@ function Create() {
                     <FileCode2 className="h-3 w-3" /> Code
                   </button>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={shufflePalette}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground"
@@ -698,7 +698,7 @@ function Create() {
               </div>
             )}
 
-            <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
+            <div className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)] sm:rounded-3xl">
               {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
                 <div className="aspect-square w-full">
                   <Suspense
@@ -776,7 +776,7 @@ function Create() {
                   )}
                 </PreviewCanvas>
               )}
-              <div className="border-t border-border p-6">
+              <div className="border-t border-border p-4 sm:p-6">
                 {draft.message ? (
                   <div className="space-y-2">
                     <p className="whitespace-pre-wrap font-display text-xl italic leading-snug text-foreground">
@@ -794,7 +794,7 @@ function Create() {
               </div>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card/60 p-4">
+            <div className="rounded-2xl border border-border bg-card/60 p-3 sm:p-4">
               <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
                 <input
                   value={draft.recipientName}
@@ -817,7 +817,7 @@ function Create() {
                     !draft.message ||
                     (draft.medium === "art" ? !image || !isFinalImage : !draft.codeSpec)
                   }
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition hover:opacity-90 disabled:opacity-40"
                 >
                   {sending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -870,7 +870,7 @@ function PlanCard({
       : null;
 
   return (
-    <div className="ml-2 mt-2 max-w-[90%] overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[0_16px_40px_-24px_rgba(0,0,0,0.3)]">
+    <div className="mt-2 max-w-full overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[0_16px_40px_-24px_rgba(0,0,0,0.3)] sm:ml-2 sm:max-w-[90%]">
       <div className="flex items-center justify-between border-b border-border/60 bg-primary/[0.06] px-3.5 py-2">
         <div className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
           <Sparkles className="h-3 w-3" /> Draft

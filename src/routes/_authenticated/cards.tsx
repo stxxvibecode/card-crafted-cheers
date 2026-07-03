@@ -37,12 +37,12 @@ function MyCards() {
   return (
     <div className="min-h-screen bg-background">
       <SiteNav />
-      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
-        <div className="flex items-end justify-between gap-4">
-          <h1 className="font-display text-4xl text-gradient">My cards</h1>
+      <div className="mx-auto max-w-6xl px-3 py-8 sm:px-6 sm:py-10">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <h1 className="font-display text-3xl text-gradient sm:text-4xl">My cards</h1>
           <Link
             to="/create"
-            className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-blush to-amber px-4 py-2 text-sm font-medium text-background hover:opacity-90"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-full bg-gradient-to-r from-blush to-amber px-4 py-2 text-sm font-medium text-background hover:opacity-90"
           >
             <Sparkles className="h-4 w-4" /> New card
           </Link>
@@ -61,7 +61,7 @@ function MyCards() {
             </Link>
           </div>
         ) : (
-          <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-6 grid gap-4 sm:mt-8 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
             {rows.map((r) => (
               <Link
                 key={r.id}
