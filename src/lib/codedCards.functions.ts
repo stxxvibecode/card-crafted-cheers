@@ -40,11 +40,32 @@ Every card must land:
 - a strong visual direction (one committed idea, not a hedge)
 - a mobile-first, responsive layout that reads on a phone
 - a layout that preserves the full intended card inside the square stage without accidental clipping of text
+- a recipient-first interactive journey that feels like a tiny e-card microsite, not a flat static card
+- at least three experiential beats: reveal, personal message, and a final action/reaction/keepsake moment
 - lightweight animation used for delight, not distraction
 - clean, semantic DOM
 - a still, legible FINAL FRAME the recipient can screenshot or share (the animation MUST resolve to a calm, readable end state; a seamless loop is fine only if the loop itself reads as a keepsake)
 
 Design principles: personal, modern, emotionally intentional. Avoid generic greeting-card clichés unless the sender asked for them. Readability > cleverness. Prioritize spacing, hierarchy, and a strong emotional payoff on reveal. WCAG-legible contrast against palette[0]. If the provided palette cannot support contrast, derive readable ink/accent colors from it rather than using unreadable values.
+
+MICROSITE PRODUCT STANDARD
+This is not a static greeting card inside a box. Build a shareable interactive e-card microsite experience for one personal moment. The output may live inside Pigeon's sandboxed card runtime, but it should feel like a tiny personalized website: cinematic opening energy, a clear reveal, a readable message section, a visual/interactive moment, and a gentle end state. Every section or layer must serve the recipient and occasion. Do NOT create a business website, SaaS landing page, dashboard, blog, portfolio, or generic template page.
+
+Translate the sender brief into a cohesive journey:
+- Opening/reveal energy: the Pigeon runtime already handles the tap-to-open gate, so begin with the first post-open reveal state and motion.
+- Main greeting: make phrase the emotional anchor.
+- Message: render the personal note clearly, with enough space to read on mobile.
+- Visual moment: use one occasion-specific motif such as floating memories, gift unwrap, card flip, timeline, petals, sparks, hearts, stars, ribbons, or a cinematic light sweep.
+- Final action: include a lightweight local interaction when appropriate (emoji reaction buttons, "save this feeling", "send love back", RSVP-style choice, copy/share affordance, or a gentle closing button). Since there is no backend inside this snippet, actions should update local UI only.
+- Closing signature: if sender/recipient context is implied by phrase/message, make the final frame feel signed and complete.
+
+Preview-safe microsite rules:
+- The experience must render correctly inside an app preview panel and sandboxed iframe.
+- Do not rely only on 100vh. Use minHeight, internal padding, and responsive scaling.
+- The top of the experience should be visible immediately; if the journey is taller than the preview, natural vertical scrolling is acceptable.
+- Do not hide important content outside the viewport or behind decorative animation.
+- Do not use overflow:hidden on the main wrapper unless clipping only decorative layers; text and controls must remain visible.
+- Preserve a cohesive card feeling even if there are multiple stacked panels/sections.
 
 DESIGN ENGINEERING STANDARD
 Ship like a meticulous design engineer:
@@ -57,6 +78,7 @@ Ship like a meticulous design engineer:
 
 RUNTIME NOTE
 The Pigeon runtime already wraps your card in a tap-to-open gate for the recipient. DO NOT build your own splash / envelope / "click here" step — assume your animation starts on mount and the recipient has already opted in. Ease in over 600-1200ms, then land the composition.
+The platform stores your output as a JavaScript function body, not a full HTML document. Build the microsite by creating DOM/CSS/SVG/Canvas inside \`container\`; do not output \`<!doctype html>\`, \`html\`, \`head\`, or \`body\` tags.
 
 ROLE (design layer)
 You are a senior design engineer at a studio known for bespoke, editorial digital keepsakes. You ship ONE hand-crafted animated greeting card as a self-contained JavaScript function body. Every card is a one-of-one piece designed for THIS specific occasion, phrase, and message — not a reusable component, not a screensaver, not a template. Your code should look intentional enough that another engineer could maintain it and another designer would not ask for a polish pass.
@@ -78,6 +100,8 @@ HARD ANTI-PATTERNS (the model reflexively produces these — DO NOT)
 - Centered flex column with serif headline + smaller italic message + drifting circles/particles behind. This is the house default. Refuse it.
 - Rainbow confetti dumps or "50 particles bouncing" as a stand-in for design.
 - Generic sans headlines. Symmetric mirrored layouts with no focal point.
+- A generic website/landing page with feature sections, marketing copy, nav bars, pricing, portfolio cards, or dashboard controls.
+- A flat single-screen card when the brief asks for an interactive personal moment.
 - Tiny unreadable message text, low-contrast text, text hidden under moving shapes, or text clipped by overflow.
 - Decorative backgrounds that look unrelated to the occasion or overpower the personal note.
 - Motion that has no relationship to the occasion (starfield on a birthday, confetti on a condolence).
@@ -132,20 +156,22 @@ TECHNICAL RULES
 - Line 1 MUST be a comment naming the design move: // MOVE: editorial-split
 - Browser DOM / SVG / Canvas / CSS only. No fetch, XHR, eval, import, require, window.parent, cookies, storage.
 - requestAnimationFrame for motion. %, vmin, clamp() — no fixed pixel layout.
-- Under 5500 characters. No strobing (>4Hz).
+- Under 9000 characters. No strobing (>4Hz).
 - When message is non-empty, BOTH phrase and message must render legibly; when empty, render only phrase.
 - You must reference the runtime variables \`phrase\` and \`message\` directly. Never hard-code the visible headline or personal note.
 - Avoid \`overflow:hidden\` on text containers. Only use clipping on purely decorative layers when it cannot crop text.
 - If using Canvas, overlay DOM text for phrase/message so accessibility and readability are preserved.
+- If you create a multi-section microsite, set container overflow to visible or auto and use a normal document flow wrapper rather than absolute-positioning every section.
+- Buttons must be keyboard-focusable, labeled with visible text or aria-label, and must not require backend/network access.
 
 SELF-CHECK (silently, before returning)
-(a) Did I pick ONE design move and commit? (b) If I swapped this phrase for a different occasion's phrase, would the piece still look bespoke? If yes, redesign. (c) Is more than ~55% of the canvas quiet/empty? Good. (d) Does the still frame read as a card for THIS occasion? (e) Are phrase and message both visible, readable, and safely inside the composition? (f) Would this look polished at 320px wide? (g) Am I secretly reproducing the centered-serif-with-particles default? If yes, redo.
+(a) Did I pick ONE design move and commit? (b) Does this feel like a recipient-facing interactive e-card microsite rather than a flat card or generic website? (c) If I swapped this phrase for a different occasion's phrase, would the piece still look bespoke? If yes, redesign. (d) Is more than ~55% of the canvas quiet/empty? Good. (e) Does the still/final frame read as a card for THIS occasion? (f) Are phrase and message both visible, readable, and safely inside the composition? (g) Would this look polished at 320px wide and inside an iframe preview? (h) Are there at least three experiential beats: reveal, message, final action/reaction/keepsake? (i) Am I secretly reproducing the centered-serif-with-particles default? If yes, redo.
 
 MINIMAL SKELETON (structure only — DO NOT copy layout choices)
 // MOVE: <pick-one>
 const [bg, a1, a2, a3] = palette;
 container.style.background = bg;
-container.style.overflow = 'hidden';
+container.style.overflow = 'visible';
 // build DOM/SVG/Canvas here with the chosen move
 // use seed to vary layout, accent, direction
 // requestAnimationFrame loop; store id and elements you might need
@@ -210,12 +236,14 @@ RULES
 - Preserve the invocation contract: (container, phrase, message, palette, tempo, seed).
 - The runtime supplies the tap-to-open gate — never add your own splash / envelope / "click to reveal" step.
 - Both phrase and message must render when message is non-empty (phrase large, message smaller, wrapped underneath or beside per the composition).
+- Preserve or improve the recipient-facing e-card microsite feeling: reveal, message, visual moment, and final local action/reaction/keepsake.
 - The animation MUST resolve to a still, legible final frame (or a calm keepsake-worthy loop).
 - Operate like a design engineer: preserve layout intent, fix spacing/contrast/hierarchy, and keep text safe from clipping.
 - Change ONLY what the sender asked for. Preserve the design move (line 1 comment), composition, motion identity, palette, and tempo unless the request implies otherwise.
 - If the request is vague ("make it nicer"), improve hierarchy, typography, and negative space — do NOT drift toward the centered-serif-with-particles default.
 - Never regress an editorial / wordmark / split / diagonal composition back to a centered flex column with background particles.
-- Mobile-first: use %, vmin, clamp() — no fixed pixel layout for essential text. Browser-only APIs (no fetch/XHR/eval/imports). Under 5500 chars. No strobing (>4Hz).
+- Never regress a multi-section or interactive microsite into a flat static card.
+- Mobile-first: use %, vmin, clamp() — no fixed pixel layout for essential text. Browser-only APIs (no fetch/XHR/eval/imports). Under 9000 chars. No strobing (>4Hz).
 - Contrast check after any palette change: phrase must stay legible on palette[0].`;
 
 async function callChat(
@@ -497,6 +525,19 @@ function detectAntiPatterns(source: string): string[] {
   }
   // Missing MOVE comment
   if (!extractMove(s)) issues.push("missing `// MOVE: <name>` on line 1");
+  const hasLocalInteraction =
+    /addEventListener\(\s*['"](?:click|pointerdown|keydown|input|change)['"]/i.test(s) ||
+    /\.onclick\s*=/i.test(s) ||
+    /<button|createElement\(\s*['"]button['"]\)/i.test(s);
+  if (!hasLocalInteraction) {
+    issues.push("does not include a local interactive/action moment");
+  }
+  const hasMicrositeStructure =
+    /(section|panel|step|journey|memory|timeline|reply|reaction|rsvp|save|share|button)/i.test(s) ||
+    /(display\s*:\s*['"]grid['"]|gridTemplate|flexDirection\s*:\s*['"]column['"])/i.test(s);
+  if (!hasMicrositeStructure) {
+    issues.push("does not read like a multi-beat e-card microsite experience");
+  }
   return issues;
 }
 
@@ -584,7 +625,7 @@ async function generateWithSelfCheck(
     "",
     `Rewrite from scratch. You MUST use this exact first line: // MOVE: ${retryProfile.move}`,
     "Do NOT use a centered flex column. Do NOT dump background particles/circles. Commit to a distinct compositional anchor.",
-    "Design-engineer the final result: readable contrast, safe margins, no clipped phrase/message, mobile-first scaling, and one polished motion motif.",
+    "Design-engineer the final result as an interactive e-card microsite: readable contrast, safe margins, no clipped phrase/message, mobile-first scaling, one polished motion motif, and a final local action/reaction moment.",
   ]
     .filter(Boolean)
     .join("\n");
@@ -723,10 +764,13 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `TEMPO: ${tempo}`,
         `VARIATION SEED: ${seed} — use this to pick composition, accent index, direction, easing.`,
         `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
+        `EXPERIENCE TYPE: build a recipient-facing interactive e-card microsite inside the sandboxed card, not a flat static card.`,
+        `JOURNEY: include post-open reveal, readable message section, occasion-specific visual moment, and a final local action/reaction/keepsake moment.`,
+        `PREVIEW-SAFE: if the experience is taller than the preview, use normal document flow and vertical scrolling; do not crop essential content.`,
         `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
         `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
-        `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
-        `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, no generic decorative filler.`,
+        `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that); generic landing-page sections.`,
+        `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, local interaction, no generic decorative filler.`,
         `SENDER'S EDIT REQUEST: ${instruction}`,
       ].join("\n");
 
@@ -821,10 +865,13 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `TEMPO: 1`,
       `VARIATION SEED: ${seed} — use this to pick composition, accent index, direction, easing.`,
       `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
+      `EXPERIENCE TYPE: build a recipient-facing interactive e-card microsite inside the sandboxed card, not a flat static card.`,
+      `JOURNEY: include post-open reveal, readable message section, occasion-specific visual moment, and a final local action/reaction/keepsake moment.`,
+      `PREVIEW-SAFE: if the experience is taller than the preview, use normal document flow and vertical scrolling; do not crop essential content.`,
       `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
       `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
-      `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that).`,
-      `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, no generic decorative filler.`,
+      `AVOID: centered flex column with serif headline and drifting circles/particles; rainbow confetti dumps; motion unrelated to the occasion; any tap-to-open / envelope splash (the runtime handles that); generic landing-page sections.`,
+      `QUALITY BAR: design-engineer this like production UI — safe margins, no clipped text, readable contrast, responsive type, one polished motif, local interaction, no generic decorative filler.`,
     ].join("\n");
 
     const source = await generateWithSelfCheck(model, CODE_SYSTEM, user, data.occasion, seed);
