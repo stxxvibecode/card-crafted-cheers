@@ -47,6 +47,13 @@ export type Database = {
             referencedRelation: "cards"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "card_responses_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "public_cards"
+            referencedColumns: ["id"]
+          },
         ]
       }
       cards: {
@@ -99,7 +106,45 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      public_cards: {
+        Row: {
+          code_spec: Json | null
+          created_at: string | null
+          id: string | null
+          image_url: string | null
+          medium: string | null
+          message: string | null
+          occasion: string | null
+          recipient_name: string | null
+          sender_name: string | null
+          sent_at: string | null
+        }
+        Insert: {
+          code_spec?: Json | null
+          created_at?: string | null
+          id?: string | null
+          image_url?: string | null
+          medium?: string | null
+          message?: string | null
+          occasion?: string | null
+          recipient_name?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+        }
+        Update: {
+          code_spec?: Json | null
+          created_at?: string | null
+          id?: string | null
+          image_url?: string | null
+          medium?: string | null
+          message?: string | null
+          occasion?: string | null
+          recipient_name?: string | null
+          sender_name?: string | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
