@@ -122,8 +122,8 @@ const SendInput = z.object({ cardId: z.string().uuid() });
 export const sendCard = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => SendInput.parse(raw))
   .handler(async ({ data }) => {
-    const sb = serverClient();
-    const { data: card, error } = await sb
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: card, error } = await supabaseAdmin
       .from("cards")
       .select("id, message, image_url, sender_name, recipient_name, recipient_email, occasion")
       .eq("id", data.cardId)
