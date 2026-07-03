@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { safeSnippetOrFallback } from "./sanitize";
 
 // Runs untrusted AI-authored JS inside a sandboxed iframe.
@@ -20,15 +20,35 @@ export function AISnippet({
   tempo: number;
   seed: number;
 }) {
+  const frameRef = useRef<HTMLIFrameElement | null>(null);
+  const [contentH, setContentH] = useState<number | null>(null);
   const html = useMemo(
     () => buildSrcDoc(source, phrase, message ?? "", palette, tempo, seed),
     [source, phrase, message, palette, tempo, seed],
   );
+
+  // Listen for height reports from the sandboxed document. If the card's
+  // content is taller than the stage, grow the wrapper so nothing is cut off
+  // (the surrounding canvas scrolls instead of clipping).
+  useEffect(() => {
+    function onMessage(e: MessageEvent) {
+      if (e.source !== frameRef.current?.contentWindow) return;
+      const d = e.data as { type?: string; height?: number };
+      if (d?.type === "pigeon:card-height" && typeof d.height === "number") {
+        setContentH(d.height > 0 ? d.height : null);
+      }
+    }
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
   return (
     <iframe
+      ref={frameRef}
       title="Coded card"
       sandbox="allow-scripts"
-      className="h-full w-full border-0"
+      className="w-full border-0"
+      style={{ height: "100%", minHeight: contentH ? `${contentH}px` : undefined, display: "block" }}
       srcDoc={html}
     />
   );
@@ -49,6 +69,20 @@ function buildSrcDoc(source: string, phrase: string, message: string, palette: s
         (new Function('container','phrase','message','palette','tempo','seed',${JSON.stringify(safe)}))(container, phrase, message, palette, tempo, seed);
       } catch (e) {
         container.innerHTML = '<div style="display:grid;place-items:center;height:100%;padding:2rem;text-align:center;"><div style="font-size:2rem;margin-bottom:1rem;">' + phrase + '</div><div style="font-size:1rem;opacity:0.8;max-width:80%;line-height:1.4;">' + (message||'') + '</div></div>';
+      }
+      // Report content height to the parent so the preview wrapper can
+      // resize and never clip the card.
+      function report(){
+        try {
+          const h = Math.max(document.documentElement.scrollHeight, container.scrollHeight);
+          parent.postMessage({ type: 'pigeon:card-height', height: h }, '*');
+        } catch (e) { /* sandboxed, ignore */ }
+      }
+      report();
+      setTimeout(report, 400);
+      setTimeout(report, 1500);
+      if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(report).observe(container);
       }
     })();
   <\/script></body></html>`;

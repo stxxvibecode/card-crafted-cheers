@@ -9,6 +9,7 @@ import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
 import { CodeViewer } from "@/lib/codedCards/CodeViewer";
+import { PreviewCanvas } from "@/components/PreviewCanvas";
 import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
 import { ModelPicker } from "@/components/ModelPicker";
@@ -585,52 +586,63 @@ function Create() {
               </div>
             )}
 
-            <div className="flex-1 overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
+            <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
               {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
                 <div className="aspect-square w-full">
                   <CodeViewer spec={draft.codeSpec} onEdit={applyHandEditedSource} />
                 </div>
               ) : (
-              <div className="relative aspect-square w-full overflow-hidden bg-gradient-to-br from-muted to-background">
-                {!draft.medium ? (
-                  <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground">
-                    <div className="space-y-2">
-                      <div className="mx-auto inline-flex gap-2">
-                        <Palette className="h-5 w-5" />
-                        <Code2 className="h-5 w-5" />
+                <PreviewCanvas
+                  aspectRatio={1}
+                  busyBadge={
+                    previewBusy && hasOutput ? (
+                      <div className="absolute right-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground backdrop-blur">
+                        updating…
                       </div>
-                      <p>Pick a medium above to begin.</p>
+                    ) : undefined
+                  }
+                  fullscreenContent={
+                    draft.medium === "code" && draft.codeSpec ? (
+                      <CodedCard spec={draft.codeSpec} awaitTap recipientName={draft.recipientName || undefined} />
+                    ) : draft.medium === "art" && image ? (
+                      <img src={image} alt="Card preview" className="h-full w-full object-cover" />
+                    ) : undefined
+                  }
+                >
+                  {!draft.medium ? (
+                    <div className="grid h-full place-items-center px-8 text-center text-sm text-muted-foreground">
+                      <div className="space-y-2">
+                        <div className="mx-auto inline-flex gap-2">
+                          <Palette className="h-5 w-5" />
+                          <Code2 className="h-5 w-5" />
+                        </div>
+                        <p>Pick a medium above to begin.</p>
+                      </div>
                     </div>
-                  </div>
-                ) : draft.medium === "art" ? (
-                  image ? (
-                    <img
-                      src={image}
-                      alt="Card preview"
-                      className={`h-full w-full object-cover transition-[filter] duration-500 ${isFinalImage ? "blur-0" : "blur-2xl"}`}
-                    />
+                  ) : draft.medium === "art" ? (
+                    image ? (
+                      <img
+                        src={image}
+                        alt="Card preview"
+                        className={`h-full w-full object-cover transition-[filter] duration-500 ${isFinalImage ? "blur-0" : "blur-2xl"}`}
+                      />
+                    ) : (
+                      <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                        {imgLoading ? (
+                          <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
+                        ) : "Approve the draft in the chat to paint your card."}
+                      </div>
+                    )
+                  ) : draft.codeSpec ? (
+                    <CodedCard spec={draft.codeSpec} />
                   ) : (
                     <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                      {imgLoading ? (
-                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
-                      ) : "Approve the draft in the chat to paint your card."}
+                      {codeLoading ? (
+                        <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Writing the code…</span>
+                      ) : "Approve the draft in the chat to code your card."}
                     </div>
-                  )
-                ) : draft.codeSpec ? (
-                  <CodedCard spec={draft.codeSpec} />
-                ) : (
-                  <div className="grid h-full place-items-center text-sm text-muted-foreground">
-                    {codeLoading ? (
-                      <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Writing the code…</span>
-                    ) : "Approve the draft in the chat to code your card."}
-                  </div>
-                )}
-                {previewBusy && hasOutput && (
-                  <div className="absolute right-3 top-3 rounded-full bg-background/80 px-2.5 py-1 text-[10px] text-muted-foreground backdrop-blur">
-                    updating…
-                  </div>
-                )}
-              </div>
+                  )}
+                </PreviewCanvas>
               )}
               <div className="border-t border-border p-6">
                 {draft.message ? (
