@@ -1,17 +1,23 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Monitor, Smartphone, Tablet, Maximize2, X } from "lucide-react";
+import { Maximize2, Monitor, Smartphone, Tablet, X } from "lucide-react";
 
-export type DeviceMode = "mobile" | "tablet" | "desktop";
+export type DeviceMode = "mobile" | "tablet" | "web";
 export type ZoomMode = "fit" | 0.75 | 1 | 1.25;
 
 const DEVICE_WIDTHS: Record<DeviceMode, number> = {
   mobile: 375,
   tablet: 640,
-  desktop: 900,
+  web: 900,
 };
 
 const SAFE_PADDING = 24;
+
+const DEVICE_OPTIONS: { mode: DeviceMode; label: string; Icon: typeof Smartphone }[] = [
+  { mode: "mobile", label: "Mobile", Icon: Smartphone },
+  { mode: "tablet", label: "Tablet", Icon: Tablet },
+  { mode: "web", label: "Web", Icon: Monitor },
+];
 
 /**
  * A polished, Lovable-style preview canvas.
@@ -41,7 +47,7 @@ export function PreviewCanvas({
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const [avail, setAvail] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const [zoom, setZoom] = useState<ZoomMode>("fit");
-  const [device, setDevice] = useState<DeviceMode>("desktop");
+  const [device, setDevice] = useState<DeviceMode>("web");
   const [fullscreen, setFullscreen] = useState(false);
 
   const measure = useCallback(() => {
@@ -75,6 +81,8 @@ export function PreviewCanvas({
 
   const baseW = DEVICE_WIDTHS[device];
   const baseH = Math.round(baseW * aspectRatio);
+  const selectedDevice =
+    DEVICE_OPTIONS.find((option) => option.mode === device) ?? DEVICE_OPTIONS[2];
 
   const scale = useMemo(() => {
     if (zoom !== "fit") return zoom;
@@ -121,35 +129,35 @@ export function PreviewCanvas({
 
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card/80 px-3 py-2 backdrop-blur">
-        <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-[11px]">
-          {(["fit", 0.75, 1, 1.25] as ZoomMode[]).map((z) => (
-            <button
-              key={String(z)}
-              onClick={() => setZoom(z)}
-              className={`rounded-full px-2.5 py-1 transition ${zoom === z ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {z === "fit" ? "Fit" : `${Math.round((z as number) * 100)}%`}
-            </button>
-          ))}
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-[11px]">
+            {(["fit", 0.75, 1, 1.25] as ZoomMode[]).map((z) => (
+              <button
+                key={String(z)}
+                onClick={() => setZoom(z)}
+                className={`rounded-full px-2.5 py-1 transition ${zoom === z ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                {z === "fit" ? "Fit" : `${Math.round((z as number) * 100)}%`}
+              </button>
+            ))}
+          </div>
+          <span className="hidden text-[11px] uppercase tracking-[0.16em] text-muted-foreground sm:inline">
+            {selectedDevice.label} · {baseW}×{baseH}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-full border border-border bg-background p-0.5">
-            {(
-              [
-                ["mobile", Smartphone],
-                ["tablet", Tablet],
-                ["desktop", Monitor],
-              ] as [DeviceMode, typeof Smartphone][]
-            ).map(([d, Icon]) => (
+          <div className="inline-flex rounded-full border border-border bg-background p-0.5 text-[11px]">
+            {DEVICE_OPTIONS.map(({ mode, label, Icon }) => (
               <button
-                key={d}
-                onClick={() => setDevice(d)}
-                title={d[0].toUpperCase() + d.slice(1)}
-                aria-label={`${d} preview`}
-                className={`grid h-7 w-8 place-items-center rounded-full transition ${device === d ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
+                key={mode}
+                onClick={() => setDevice(mode)}
+                title={`${label} preview`}
+                aria-label={`${label} preview`}
+                className={`inline-flex h-7 items-center gap-1.5 rounded-full px-2.5 transition ${device === mode ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground"}`}
               >
                 <Icon className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">{label}</span>
               </button>
             ))}
           </div>
@@ -170,7 +178,7 @@ export function PreviewCanvas({
           <div className="fixed inset-0 z-[100] flex flex-col bg-background/95 backdrop-blur-xl">
             <div className="flex items-center justify-between px-4 py-3">
               <span className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                Recipient preview
+                Recipient preview · {selectedDevice.label}
               </span>
               <button
                 onClick={() => setFullscreen(false)}
@@ -184,7 +192,7 @@ export function PreviewCanvas({
               <div
                 className="w-full overflow-visible rounded-3xl border border-border shadow-[0_60px_140px_-50px_rgba(0,0,0,0.6)]"
                 style={{
-                  maxWidth: `min(92vw, calc((100dvh - 140px) / ${aspectRatio}))`,
+                  maxWidth: `min(${baseW}px, 92vw, calc((100dvh - 140px) / ${aspectRatio}))`,
                   aspectRatio: `1 / ${aspectRatio}`,
                 }}
               >
