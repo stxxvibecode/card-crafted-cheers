@@ -18,6 +18,13 @@ import {
   Loader2,
   RefreshCw,
   Send,
+  Share2,
+  Copy,
+  Mail,
+  MessageSquare,
+  QrCode,
+  ExternalLink,
+  X,
   MessageCircle,
   Pencil,
   ArrowUp,
@@ -167,6 +174,7 @@ function Create() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [shareCard, setShareCard] = useState<{ id: string; url: string } | null>(null);
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
   const [previewTab, setPreviewTab] = useState<"preview" | "code">("preview");
@@ -553,7 +561,8 @@ function Create() {
         },
       });
       toast.success("Card link created");
-      navigate({ to: "/card/$id", params: { id } });
+      const url = `${window.location.origin}/card/${id}`;
+      setShareCard({ id, url });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Failed to send");
     } finally {
@@ -827,7 +836,158 @@ function Create() {
                   Create link
                 </button>
               </div>
+              {shareCard && (
+                <SharePanel
+                  url={shareCard.url}
+                  recipientName={draft.recipientName}
+                  senderName={draft.senderName}
+                  occasion={draft.occasion}
+                  onClose={() => setShareCard(null)}
+                  onView={() => navigate({ to: "/card/$id", params: { id: shareCard.id } })}
+                />
+              )}
             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SharePanel({
+  url,
+  recipientName,
+  senderName,
+  occasion,
+  onClose,
+  onView,
+}: {
+  url: string;
+  recipientName: string;
+  senderName: string;
+  occasion?: string;
+  onClose: () => void;
+  onView: () => void;
+}) {
+  const sender = senderName.trim() || "Someone";
+  const recipient = recipientName.trim() || "you";
+  const title = `${sender} sent ${recipient} a card`;
+  const shareText = `${title}${occasion ? ` for ${occasion.toLowerCase()}` : ""}. Open it here: ${url}`;
+  const encodedUrl = encodeURIComponent(url);
+  const encodedText = encodeURIComponent(shareText);
+  const emailSubject = encodeURIComponent(title);
+  const emailBody = encodeURIComponent(`${shareText}\n\nMade with Pigeon.`);
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=12&data=${encodedUrl}`;
+
+  async function copyLink() {
+    await navigator.clipboard.writeText(url);
+    toast.success("Link copied");
+  }
+
+  async function nativeShare() {
+    if (!navigator.share) {
+      await copyLink();
+      return;
+    }
+    try {
+      await navigator.share({ title, text: shareText, url });
+    } catch {
+      // User cancelled the share sheet.
+    }
+  }
+
+  return (
+    <div className="mt-3 rounded-2xl border border-primary/25 bg-background p-3 shadow-[0_20px_60px_-36px_rgba(0,0,0,0.45)] sm:p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <div className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.16em] text-primary">
+            <Share2 className="h-3 w-3" /> Ready to share
+          </div>
+          <h3 className="mt-1 font-display text-xl leading-tight">Send this card anywhere.</h3>
+          <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+            Copy the link, open your phone's share sheet, start an email or text, or let someone
+            scan the QR code.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close share panel"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-border text-muted-foreground hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      <div className="mt-3 grid gap-3 lg:grid-cols-[1fr_auto]">
+        <div className="min-w-0 space-y-3">
+          <div className="flex min-w-0 items-center gap-2 rounded-xl border border-border bg-card/60 p-2">
+            <input
+              readOnly
+              value={url}
+              className="min-w-0 flex-1 bg-transparent px-2 text-xs text-muted-foreground outline-none"
+              aria-label="Share card link"
+            />
+            <button
+              type="button"
+              onClick={copyLink}
+              className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg bg-foreground px-3 text-xs font-medium text-background hover:opacity-90"
+            >
+              <Copy className="h-3.5 w-3.5" /> Copy
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <button
+              type="button"
+              onClick={nativeShare}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
+            >
+              <Share2 className="h-4 w-4" /> Share
+            </button>
+            <a
+              href={`mailto:?subject=${emailSubject}&body=${emailBody}`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
+            >
+              <Mail className="h-4 w-4" /> Email
+            </a>
+            <a
+              href={`sms:?&body=${encodedText}`}
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
+            >
+              <MessageSquare className="h-4 w-4" /> Text
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodedText}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
+            >
+              <MessageSquare className="h-4 w-4" /> WhatsApp
+            </a>
+            <button
+              type="button"
+              onClick={onView}
+              className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40 sm:col-span-1"
+            >
+              <ExternalLink className="h-4 w-4" /> Open
+            </button>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 rounded-xl border border-border bg-card/60 p-3 lg:w-[170px] lg:flex-col">
+          <img
+            src={qrUrl}
+            alt={`QR code for ${title}`}
+            className="h-24 w-24 rounded-lg bg-white p-1 lg:h-32 lg:w-32"
+          />
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 text-xs font-medium">
+              <QrCode className="h-3.5 w-3.5" /> QR code
+            </div>
+            <p className="mt-1 text-xs leading-snug text-muted-foreground">
+              Best for events, printed cards, or in-person sharing.
+            </p>
           </div>
         </div>
       </div>
