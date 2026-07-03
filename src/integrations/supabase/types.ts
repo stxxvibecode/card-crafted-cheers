@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      card_responses: {
+        Row: {
+          author_name: string | null
+          card_id: string
+          content: string
+          created_at: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          author_name?: string | null
+          card_id: string
+          content: string
+          created_at?: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          author_name?: string | null
+          card_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "card_responses_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           code_spec: Json | null
