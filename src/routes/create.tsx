@@ -30,6 +30,7 @@ import {
   Eye,
   FileCode2,
   Download,
+  Check,
 } from "lucide-react";
 import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import { z } from "zod";
@@ -120,14 +121,13 @@ function Create() {
   const [sending, setSending] = useState(false);
 
   const [mode, setMode] = useState<"chat" | "editor">("chat");
-  const [actionMode, setActionMode] = useState<"plan" | "build">("plan");
   const [previewTab, setPreviewTab] = useState<"preview" | "code">("preview");
   const [messages, setMessages] = useState<ChatMsg[]>(() => [
     {
       id: "seed",
       role: "assistant",
       content:
-        "Hi, I'm Pigeon. Pick your medium and Plan or Build mode, then tell me who this card is for and how you'd like it to feel.",
+        "Hi, I'm Pigeon. Pick Art or Code above, then tell me who this card is for and how you'd like it to feel. I'll draft the card — nothing gets built until you approve it.",
     },
   ]);
   const [chatBusy, setChatBusy] = useState(false);
@@ -242,10 +242,6 @@ function Create() {
       ]);
       if (hasProposals) {
         setPendingPlan(planForBuild);
-        if (actionMode === "build" && (planForBuild.medium ?? draftRef.current.medium)) {
-          // Auto-execute build right away.
-          setTimeout(() => commitPlanRef.current?.(planForBuild), 0);
-        }
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Chat failed");
@@ -517,8 +513,6 @@ function Create() {
                 pendingPlan={pendingPlan}
                 medium={draft.medium}
                 mediumPickerRef={mediumPickerRef}
-                actionMode={actionMode}
-                setActionMode={setActionMode}
                 onBuild={commitPlan}
                 building={imgLoading || codeLoading || msgLoading}
                 initialText={initialPrompt ?? ""}
@@ -619,7 +613,7 @@ function Create() {
                     <div className="grid h-full place-items-center text-sm text-muted-foreground">
                       {imgLoading ? (
                         <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Painting…</span>
-                      ) : "Hit Build in the chat to paint your card."}
+                      ) : "Approve the draft in the chat to paint your card."}
                     </div>
                   )
                 ) : draft.codeSpec ? (
@@ -627,8 +621,8 @@ function Create() {
                 ) : (
                   <div className="grid h-full place-items-center text-sm text-muted-foreground">
                     {codeLoading ? (
-                      <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Composing…</span>
-                    ) : "Hit Build in the chat to compose your coded card."}
+                      <span className="inline-flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Writing the code…</span>
+                    ) : "Approve the draft in the chat to code your card."}
                   </div>
                 )}
                 {previewBusy && hasOutput && (
@@ -719,45 +713,57 @@ function PlanCard({
   const paletteSwatches = proposedMedium === "code" && plan.codePalette && plan.codePalette.length > 0 ? plan.codePalette : null;
 
   return (
-    <div className="ml-2 mt-1 max-w-[85%] rounded-xl border border-border bg-background/70 p-3 text-xs">
-      <div className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-        <Hammer className="h-3 w-3" /> Plan
-      </div>
-      {rows.length > 0 ? (
-        <dl className="space-y-1">
-          {rows.map(([k, v]) => (
-            <div key={k} className="grid grid-cols-[70px_1fr] gap-2">
-              <dt className="text-muted-foreground">{k}</dt>
-              <dd className="text-foreground">{v}</dd>
-            </div>
-          ))}
-        </dl>
-      ) : (
-        <p className="text-muted-foreground">Ready when you are.</p>
-      )}
-      {paletteSwatches && (
-        <div className="mt-2 grid grid-cols-[70px_1fr] gap-2">
-          <span className="text-muted-foreground">Palette</span>
-          <div className="flex flex-wrap gap-1.5">
-            {paletteSwatches.map((c, i) => (
-              <span
-                key={i}
-                title={c}
-                className="h-4 w-4 rounded-full border border-border shadow-sm"
-                style={{ backgroundColor: c }}
-              />
-            ))}
-          </div>
+    <div className="ml-2 mt-2 max-w-[90%] overflow-hidden rounded-xl border border-primary/25 bg-card shadow-[0_16px_40px_-24px_rgba(0,0,0,0.3)]">
+      <div className="flex items-center justify-between border-b border-border/60 bg-primary/[0.06] px-3.5 py-2">
+        <div className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+          <Sparkles className="h-3 w-3" /> Draft
         </div>
-      )}
-      <button
-        onClick={() => onBuild(plan)}
-        disabled={disabled}
-        className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-3 py-2 text-xs font-medium text-background transition hover:opacity-90 disabled:opacity-40"
-      >
-        {building ? <Loader2 className="h-3 w-3 animate-spin" /> : <Hammer className="h-3 w-3" />}
-        {plan.built ? "Built" : "Build card"}
-      </button>
+        <span className="text-[10px] text-muted-foreground">
+          {plan.built ? "Approved" : "Waiting for your approval"}
+        </span>
+      </div>
+      <div className="p-3.5 text-xs">
+        {rows.length > 0 ? (
+          <dl className="space-y-1.5">
+            {rows.map(([k, v]) => (
+              <div key={k} className="grid grid-cols-[70px_1fr] gap-2">
+                <dt className="text-muted-foreground">{k}</dt>
+                <dd className="text-foreground">{v}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-muted-foreground">Ready when you are.</p>
+        )}
+        {paletteSwatches && (
+          <div className="mt-2 grid grid-cols-[70px_1fr] gap-2">
+            <span className="text-muted-foreground">Palette</span>
+            <div className="flex flex-wrap gap-1.5">
+              {paletteSwatches.map((c, i) => (
+                <span
+                  key={i}
+                  title={c}
+                  className="h-4 w-4 rounded-full border border-border shadow-sm"
+                  style={{ backgroundColor: c }}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+        <button
+          onClick={() => onBuild(plan)}
+          disabled={disabled}
+          className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2.5 text-xs font-semibold text-primary-foreground transition hover:opacity-90 disabled:opacity-40"
+        >
+          {building ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+          {plan.built ? "Approved & built" : building ? "Building…" : "Approve & build"}
+        </button>
+        {!plan.built && (
+          <p className="mt-2 text-center text-[10px] text-muted-foreground">
+            Not quite right? Just keep chatting — I'll revise the draft.
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -769,8 +775,6 @@ function ChatPanel({
   pendingPlan,
   medium,
   mediumPickerRef,
-  actionMode,
-  setActionMode,
   onBuild,
   building,
   initialText,
@@ -781,8 +785,6 @@ function ChatPanel({
   pendingPlan: PlanUpdates | null;
   medium?: Medium;
   mediumPickerRef: React.RefObject<HTMLDivElement | null>;
-  actionMode: "plan" | "build";
-  setActionMode: (m: "plan" | "build") => void;
   onBuild: (p: PlanUpdates) => void;
   building: boolean;
   initialText: string;
@@ -858,16 +860,6 @@ function ChatPanel({
           <PromptInputFooter className="flex-wrap justify-between gap-2">
             <div className="flex min-w-0 flex-wrap items-center gap-1.5">
               <ModelPicker />
-              <select
-                value={actionMode}
-                onChange={(e) => setActionMode(e.target.value as "plan" | "build")}
-                className="min-w-0 shrink-0 rounded-full border border-border bg-background px-2.5 py-1 text-xs text-foreground outline-none hover:border-foreground/40"
-                aria-label="Action mode"
-              >
-                <option value="plan">Plan</option>
-                <option value="build">Build</option>
-              </select>
-
             </div>
             <PromptInputSubmit
               className="shrink-0"
