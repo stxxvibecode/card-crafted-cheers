@@ -634,8 +634,10 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       const raw = await callChat(model, system, user, { json: true }).catch(() => "");
       let parsed: { template: string; palette: string[]; tempo: number } | null = null;
       try { parsed = raw ? JSON.parse(raw) : null; } catch { /* fall through */ }
-      const template = (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
-        ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
+      const template = data.templateHint
+        ? data.templateHint
+        : (parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">))
+          ? (parsed.template as Exclude<TemplateId, "ai">) : fallbackId;
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));
       return { template, palette, phrase: finalPhrase, message: finalMessage || undefined, tempo, seed };
