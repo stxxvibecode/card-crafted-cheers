@@ -73,6 +73,7 @@ export async function lavaChat(
     if (res.status === 401) throw new Error(`Lava: invalid LAVA_SECRET_KEY.`);
     if (res.status === 404) throw new Error(`Lava: model "${body.model}" not available. Pick another in the model picker.`);
     if (res.status === 413) throw new Error(`Lava: "${resolvedModel}" is too small for this prompt (token/minute limit exceeded). Pick a larger-context model like gemini-2.5-flash or gemini-2.5-pro in the model picker.`);
+    if (res.status >= 500) throw new Error(`Lava ${res.status}: upstream provider for "${resolvedModel}" hiccupped (${text.includes("Failed to parse") ? "parse error" : "server error"}). Try again, or switch model.`);
     throw new Error(`Lava ${res.status}: ${text.slice(0, 300) || res.statusText}`);
   }
   const json = (await res.json()) as {
