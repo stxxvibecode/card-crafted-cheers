@@ -62,6 +62,33 @@ export type Database = {
         }
         Relationships: []
       }
+      card_responses: {
+        Row: {
+          card_id: string
+          content: string
+          created_at: string
+          id: string
+          kind: string
+          author_name: string | null
+        }
+        Insert: {
+          card_id: string
+          content: string
+          created_at?: string
+          id?: string
+          kind: string
+          author_name?: string | null
+        }
+        Update: {
+          card_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          author_name?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
