@@ -169,18 +169,6 @@ function Index() {
               </form>
             </div>
 
-            {/* Example chips */}
-            <div className="mt-5 flex max-w-xl flex-wrap gap-2">
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex}
-                  onClick={() => start(ex)}
-                  className="rounded-full border border-border bg-card/50 px-3 py-1.5 text-xs text-muted-foreground transition hover:border-primary/40 hover:text-foreground"
-                >
-                  {ex}
-                </button>
-              ))}
-            </div>
           </div>
 
           {/* Right: card stack */}
