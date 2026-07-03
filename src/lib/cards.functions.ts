@@ -106,7 +106,7 @@ export const saveCard = createServerFn({ method: "POST" })
       code_spec: data.codeSpec ?? null,
       sender_name: data.senderName ?? null,
       recipient_name: data.recipientName,
-      recipient_email: data.recipientEmail ?? null,
+      recipient_email: data.recipientEmail ?? "",
     };
 
     const { data: row, error } = await sb.from("cards").insert(insert).select("id").single();
