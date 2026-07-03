@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteNav } from "@/components/site-nav";
-import { Copy, Mail, MessageSquare, Share2, Sparkles } from "lucide-react";
+import { Copy, Mail, Share2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
 import type { CodeSpec } from "@/lib/codedCards/registry";
@@ -120,7 +120,6 @@ function CardShareActions({
 
   const title = `A card for ${recipientName}`;
   const text = `${title}${occasion ? ` for ${occasion.toLowerCase()}` : ""}: ${url}`;
-  const encodedText = encodeURIComponent(text);
   const encodedSubject = encodeURIComponent(title);
   const encodedBody = encodeURIComponent(`${text}\n\nMade with Pigeon.`);
 
@@ -142,7 +141,7 @@ function CardShareActions({
   }
 
   return (
-    <div className="mt-4 grid grid-cols-4 gap-1.5">
+    <div className="mt-4 grid grid-cols-3 gap-1.5">
       <button
         type="button"
         onClick={nativeShare}
@@ -168,14 +167,6 @@ function CardShareActions({
         title="Email"
       >
         <Mail className="h-3.5 w-3.5" />
-      </a>
-      <a
-        href={`sms:?&body=${encodedText}`}
-        className="grid min-h-9 place-items-center rounded-lg border border-border text-muted-foreground hover:text-foreground"
-        aria-label="Text card"
-        title="Text"
-      >
-        <MessageSquare className="h-3.5 w-3.5" />
       </a>
     </div>
   );

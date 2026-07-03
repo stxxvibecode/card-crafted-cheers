@@ -21,7 +21,6 @@ import {
   Share2,
   Copy,
   Mail,
-  MessageSquare,
   QrCode,
   ExternalLink,
   X,
@@ -874,7 +873,6 @@ function SharePanel({
   const title = `${sender} sent ${recipient} a card`;
   const shareText = `${title}${occasion ? ` for ${occasion.toLowerCase()}` : ""}. Open it here: ${url}`;
   const encodedUrl = encodeURIComponent(url);
-  const encodedText = encodeURIComponent(shareText);
   const emailSubject = encodeURIComponent(title);
   const emailBody = encodeURIComponent(`${shareText}\n\nMade with Pigeon.`);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=12&data=${encodedUrl}`;
@@ -905,8 +903,8 @@ function SharePanel({
           </div>
           <h3 className="mt-1 font-display text-xl leading-tight">Send this card anywhere.</h3>
           <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-            Copy the link, open your phone's share sheet, start an email or text, or let someone
-            scan the QR code.
+            Copy the link, open your device's share sheet, start an email, or let someone scan the
+            QR code.
           </p>
         </div>
         <button
@@ -951,24 +949,10 @@ function SharePanel({
             >
               <Mail className="h-4 w-4" /> Email
             </a>
-            <a
-              href={`sms:?&body=${encodedText}`}
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
-            >
-              <MessageSquare className="h-4 w-4" /> Text
-            </a>
-            <a
-              href={`https://wa.me/?text=${encodedText}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
-            >
-              <MessageSquare className="h-4 w-4" /> WhatsApp
-            </a>
             <button
               type="button"
               onClick={onView}
-              className="col-span-2 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40 sm:col-span-1"
+              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card/70 px-3 text-xs font-medium hover:border-primary/40"
             >
               <ExternalLink className="h-4 w-4" /> Open
             </button>
