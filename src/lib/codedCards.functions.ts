@@ -212,12 +212,19 @@ async function callChat(
   try {
     return await lavaChat(model, messages, { json: opts?.json, maxTokens });
   } catch (e) {
-    // If the chosen model returned nothing (empty response / cap / refusal),
+    // If the chosen model returned nothing (empty response / cap / refusal)
+    // OR the upstream provider had a transient failure (502/503/504/parse),
     // retry once on a known-good default so the user still gets a card.
     const msg = e instanceof Error ? e.message : String(e);
     const empty = /empty response|hit its output cap|refused this prompt/i.test(msg);
-    if (empty && model && model !== "gemini-2.5-flash") {
+    const transient = /Lava (5\d\d|429)|provider_response_error|Failed to parse provider response/i.test(msg);
+    if ((empty || transient) && model && model !== "gemini-2.5-flash") {
       return await lavaChat("gemini-2.5-flash", messages, { json: opts?.json, maxTokens });
+    }
+    if (transient) {
+      // Same model, one retry after a short backoff.
+      await new Promise((r) => setTimeout(r, 800));
+      return await lavaChat(model, messages, { json: opts?.json, maxTokens });
     }
     throw e;
   }
