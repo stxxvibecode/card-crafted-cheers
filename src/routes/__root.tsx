@@ -46,9 +46,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-xl font-semibold tracking-tight">
-          This page didn't load
-        </h1>
+        <h1 className="text-xl font-semibold tracking-tight">This page didn't load</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
@@ -80,9 +78,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Pigeon — hand-carried e-cards, quietly beautiful" },
-      { name: "description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
+      {
+        name: "description",
+        content:
+          "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it.",
+      },
       { property: "og:title", content: "Pigeon — hand-carried e-cards, quietly beautiful" },
-      { property: "og:description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
+      {
+        property: "og:description",
+        content:
+          "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -93,7 +99,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,400;0,500;0,700;0,900;1,400;1,500;1,700&family=Instrument+Serif:ital@0;1&display=swap",
       },
     ],
   }),
