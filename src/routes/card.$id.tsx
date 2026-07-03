@@ -32,13 +32,13 @@ type Card = {
 
 export const Route = createFileRoute("/card/$id")({
   loader: async ({ params }) => {
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .from("public_cards")
       .select("id, message, image_url, sender_name, recipient_name, occasion, medium, code_spec")
       .eq("id", params.id)
       .maybeSingle();
     if (error || !data) throw notFound();
-    return { card: data as unknown as Card };
+    return { card: data as Card };
   },
   head: ({ loaderData }) => ({
     meta: loaderData

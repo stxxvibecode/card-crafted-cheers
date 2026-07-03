@@ -570,7 +570,7 @@ function Create() {
       <div className="mx-auto max-w-7xl px-3 py-4 sm:px-6 sm:py-6">
         <div className="grid gap-4 lg:h-[calc(100vh-8rem)] lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)] lg:gap-6">
           {/* Left: Chat / Editor panel */}
-          <div className="flex h-[min(58svh,540px)] min-h-[400px] flex-col overflow-hidden rounded-2xl border border-border bg-card/60 sm:min-h-[480px] lg:h-auto lg:min-h-0">
+          <div className="flex h-[min(58svh,540px)] min-h-[400px] min-w-0 flex-col overflow-hidden rounded-2xl border border-border bg-card/60 sm:min-h-[480px] lg:h-auto lg:min-h-0">
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
               <div className="flex items-center gap-2">
                 <Bird className="h-4 w-4 text-primary" />
@@ -644,7 +644,7 @@ function Create() {
           </div>
 
           {/* Right: Preview + Send */}
-          <div className="flex min-h-[520px] flex-col gap-3 lg:min-h-0 lg:gap-4">
+          <div className="flex min-h-[520px] min-w-0 flex-col gap-3 lg:min-h-0 lg:gap-4">
             {draft.medium === "code" && draft.codeSpec && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
