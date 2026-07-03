@@ -42,7 +42,19 @@ export const Route = createFileRoute("/api/models")({
           });
         }
         const key = process.env.LAVA_SECRET_KEY;
-        if (!key) return new Response("Missing LAVA_SECRET_KEY", { status: 500 });
+        if (!key) {
+          const body = JSON.stringify({
+            error: "missing_env_var",
+            variable: "LAVA_SECRET_KEY",
+            message:
+              "The /api/models endpoint requires the LAVA_SECRET_KEY environment variable to authenticate with https://api.lava.so. Add it in Project Settings → Secrets, then reload.",
+            docs: "https://lava.so",
+          });
+          return new Response(body, {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
 
         const upstream = await fetch("https://api.lava.so/v1/models", {
           headers: { Authorization: `Bearer ${key}` },
