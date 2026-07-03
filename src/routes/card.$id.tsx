@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -13,9 +13,11 @@ import {
   Loader2,
   Feather,
 } from "lucide-react";
-import { CodedCard } from "@/lib/codedCards/CodedCard";
-import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import type { CodeSpec } from "@/lib/codedCards/registry";
+
+const CodedCard = lazy(() =>
+  import("@/lib/codedCards/CodedCard").then((mod) => ({ default: mod.CodedCard })),
+);
 
 type Card = {
   id: string;
@@ -31,7 +33,7 @@ type Card = {
 export const Route = createFileRoute("/card/$id")({
   loader: async ({ params }) => {
     const { data, error } = await supabase
-      .from("cards")
+      .from("public_cards")
       .select("id, message, image_url, sender_name, recipient_name, occasion, medium, code_spec")
       .eq("id", params.id)
       .maybeSingle();
@@ -298,7 +300,13 @@ function RevealedCard({
         }}
       >
         {card.medium === "code" && card.code_spec ? (
-          <CodedCard spec={card.code_spec} recipientName={card.recipient_name} />
+          <Suspense
+            fallback={
+              <div className="grid h-full place-items-center text-sm opacity-60">Opening…</div>
+            }
+          >
+            <CodedCard spec={card.code_spec} recipientName={card.recipient_name} />
+          </Suspense>
         ) : card.image_url ? (
           <img
             src={card.image_url}
@@ -423,14 +431,16 @@ function ActionArea({
 
   function saveKeepsake() {
     if (card.medium === "code" && card.code_spec?.template === "ai" && card.code_spec.source) {
-      const ok = downloadStandaloneHtml(card.code_spec, {
-        recipientName: card.recipient_name,
-        senderName: card.sender_name,
-        message: card.message,
-        occasion: card.occasion,
+      void import("@/lib/codedCards/exportHtml").then(({ downloadStandaloneHtml }) => {
+        const ok = downloadStandaloneHtml(card.code_spec!, {
+          recipientName: card.recipient_name,
+          senderName: card.sender_name,
+          message: card.message,
+          occasion: card.occasion,
+        });
+        if (ok) toast.success("Card saved");
+        else toast.error("Saving isn't available for this card.");
       });
-      if (ok) toast.success("Card saved");
-      else toast.error("Saving isn't available for this card.");
     } else if (card.image_url) {
       const a = document.createElement("a");
       a.href = card.image_url;

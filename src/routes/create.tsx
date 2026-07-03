@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { SiteNav } from "@/components/site-nav";
@@ -8,7 +8,6 @@ import { generateMessage, saveCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
-import { CodeViewer } from "@/lib/codedCards/CodeViewer";
 import { PreviewCanvas } from "@/components/PreviewCanvas";
 import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
@@ -33,21 +32,22 @@ import {
   Download,
   Check,
 } from "lucide-react";
-import { downloadStandaloneHtml } from "@/lib/codedCards/exportHtml";
 import { z } from "zod";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { Message, MessageContent } from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputTextarea,
   PromptInputFooter,
   PromptInputSubmit,
 } from "@/components/ai-elements/prompt-input";
-import { Shimmer } from "@/components/ai-elements/shimmer";
+
+const CodeViewer = lazy(() =>
+  import("@/lib/codedCards/CodeViewer").then((mod) => ({ default: mod.CodeViewer })),
+);
 
 const search = z.object({ prompt: z.string().optional() });
 
@@ -70,6 +70,35 @@ function wantsFreshCodeDesign(instruction?: string) {
   if (!instruction) return false;
   return /\b(different|vary|variation|fresh|new|another|again|redo|redesign|rebuild|not the same|same design|switch it up)\b/i.test(
     instruction,
+  );
+}
+
+function ChatBubble({ role, children }: { role: "user" | "assistant"; children: ReactNode }) {
+  return (
+    <div
+      className={`flex w-full max-w-[95%] flex-col gap-2 ${role === "user" ? "ml-auto items-end" : "items-start"}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+function UserBubble({ children }: { children: ReactNode }) {
+  return (
+    <div className="max-w-[85%] rounded-lg bg-foreground px-4 py-3 text-sm text-background">
+      {children}
+    </div>
+  );
+}
+
+function ThinkingText({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <span
+      className={`inline-block animate-pulse text-muted-foreground ${className ?? ""}`}
+      aria-live="polite"
+    >
+      {children}
+    </span>
   );
 }
 
@@ -648,7 +677,9 @@ function Create() {
                   </button>
                   {draft.codeSpec?.template === "ai" && draft.codeSpec.source && (
                     <button
-                      onClick={() => {
+                      onClick={async () => {
+                        const { downloadStandaloneHtml } =
+                          await import("@/lib/codedCards/exportHtml");
                         const ok = downloadStandaloneHtml(draft.codeSpec!, {
                           recipientName: draft.recipientName,
                           senderName: draft.senderName,
@@ -670,7 +701,15 @@ function Create() {
             <div className="flex flex-1 flex-col overflow-hidden rounded-3xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)]">
               {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
                 <div className="aspect-square w-full">
-                  <CodeViewer spec={draft.codeSpec} onEdit={applyHandEditedSource} />
+                  <Suspense
+                    fallback={
+                      <div className="grid h-full place-items-center text-sm text-muted-foreground">
+                        Loading code viewer…
+                      </div>
+                    }
+                  >
+                    <CodeViewer spec={draft.codeSpec} onEdit={applyHandEditedSource} />
+                  </Suspense>
                 </div>
               ) : (
                 <PreviewCanvas
@@ -744,7 +783,7 @@ function Create() {
                       {draft.message}
                     </p>
                     {chatBusy && mode === "chat" && (
-                      <Shimmer className="text-xs">Pigeon is thinking…</Shimmer>
+                      <ThinkingText className="text-xs">Pigeon is thinking…</ThinkingText>
                     )}
                   </div>
                 ) : (
@@ -939,17 +978,15 @@ function ChatPanel({
         <ConversationContent className="space-y-1">
           {messages.map((m) => (
             <div key={m.id}>
-              <Message from={m.role}>
+              <ChatBubble role={m.role}>
                 {m.role === "assistant" ? (
                   <div className="max-w-[85%] text-sm leading-relaxed text-foreground">
                     {m.content}
                   </div>
                 ) : (
-                  <MessageContent className="max-w-[85%] bg-foreground text-background">
-                    {m.content}
-                  </MessageContent>
+                  <UserBubble>{m.content}</UserBubble>
                 )}
-              </Message>
+              </ChatBubble>
               {m.planId && pendingPlan && pendingPlan.id === m.planId && (
                 <PlanCard
                   plan={pendingPlan}
@@ -961,9 +998,9 @@ function ChatPanel({
             </div>
           ))}
           {busy && (
-            <Message from="assistant">
-              <Shimmer className="text-sm">Pigeon is thinking…</Shimmer>
-            </Message>
+            <ChatBubble role="assistant">
+              <ThinkingText className="text-sm">Pigeon is thinking…</ThinkingText>
+            </ChatBubble>
           )}
         </ConversationContent>
         <ConversationScrollButton />
