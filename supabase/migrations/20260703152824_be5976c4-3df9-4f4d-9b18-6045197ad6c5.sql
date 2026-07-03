@@ -1,0 +1,2 @@
+DROP POLICY "Anyone can add a response" ON public.card_responses;
+CREATE POLICY "Anyone can add a response to an existing card" ON public.card_responses FOR INSERT TO anon, authenticated WITH CHECK (EXISTS (SELECT 1 FROM public.cards c WHERE c.id = card_id));
