@@ -244,7 +244,7 @@ function Index() {
                     "You showed up when it mattered — and it mattered a lot."
                   </div>
                   <div className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Sparkles className="h-3 w-3" /> Message drafted by Pigeon
+                    <Sparkles className="h-3 w-3" /> Message drafted by You!&nbsp;
                   </div>
                 </div>
               </div>
