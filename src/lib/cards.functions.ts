@@ -107,7 +107,7 @@ export const saveCard = createServerFn({ method: "POST" })
         sender_name: data.senderName ?? null,
         recipient_name: data.recipientName,
         recipient_email: data.recipientEmail ?? null,
-      })
+      } as any)
       .select("id")
       .single();
 
