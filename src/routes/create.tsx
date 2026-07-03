@@ -644,7 +644,7 @@ function Create() {
           </div>
 
           {/* Right: Preview + Send */}
-          <div className="flex min-h-[520px] flex-col gap-3 lg:min-h-0 lg:gap-4">
+          <div className="flex min-h-[520px] min-w-0 flex-col gap-3 lg:min-h-0 lg:gap-4">
             {draft.medium === "code" && draft.codeSpec && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
