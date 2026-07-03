@@ -149,7 +149,14 @@ OCCASION VOCABULARY (interpret, don't copy)
 - Get well → slow constellation, breathing gradient, muted teal, single sunrise arc
 - Condolence / Thinking of you → single candle, drifting light, ink wash, deep neutrals, generous negative space
 - Holiday → palette-led (snow, aurora, garland), one hero motif
+- RSVP / Invitation / Wedding / Event → invitation microsite, event-detail reveal, RSVP choice cards, calendar/date motif, ticket/venue/save-the-date visual; prioritize clear action over sentiment-only copy
 - Just because → surprise the reader; commit to an unusual move
+
+- RSVP / Invitation card behavior:
+  - Treat RSVP, invitation, wedding, baby shower, graduation, launch, dinner, party, and save-the-date prompts as event-response experiences, not generic e-cards.
+  - Include clear invitation hierarchy: what it is, who it is for/hosted by when known, date/time/location if present in the brief, and a local RSVP choice interaction (Yes / Maybe / Can't make it or equivalent).
+  - The RSVP action is local UI only inside the generated card; the real recipient page also stores RSVP responses.
+  - Do not use birthday/thank-you/love copy patterns for RSVP cards.
 
 TECHNICAL RULES
 - Output ONLY the function body. No markdown, no fences, no explanation, no imports, no wrapping \`function\` keyword.
@@ -766,6 +773,7 @@ palette[0] is background; ensure the phrase stays legible on it.`;
         `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
         `EXPERIENCE TYPE: build a recipient-facing interactive e-card microsite inside the sandboxed card, not a flat static card.`,
         `JOURNEY: include post-open reveal, readable message section, occasion-specific visual moment, and a final local action/reaction/keepsake moment.`,
+        `CARD TYPE LOGIC: if the occasion/concept is RSVP, invitation, wedding, shower, graduation, launch, dinner, party, save-the-date, or event, build an RSVP/invitation microsite with event details and visible local RSVP choices — not a generic greeting card.`,
         `PREVIEW-SAFE: if the experience is taller than the preview, use normal document flow and vertical scrolling; do not crop essential content.`,
         `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
         `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,
@@ -867,6 +875,7 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       `DESIGN MOVE: ${data.motionHint ? `sender hinted "${data.motionHint}" — translate that into ONE named move from the taxonomy` : "pick ONE move from the taxonomy that fits the occasion and is NOT the centered-serif-with-particles default"}`,
       `EXPERIENCE TYPE: build a recipient-facing interactive e-card microsite inside the sandboxed card, not a flat static card.`,
       `JOURNEY: include post-open reveal, readable message section, occasion-specific visual moment, and a final local action/reaction/keepsake moment.`,
+      `CARD TYPE LOGIC: if the occasion/concept is RSVP, invitation, wedding, shower, graduation, launch, dinner, party, save-the-date, or event, build an RSVP/invitation microsite with event details and visible local RSVP choices — not a generic greeting card.`,
       `PREVIEW-SAFE: if the experience is taller than the preview, use normal document flow and vertical scrolling; do not crop essential content.`,
       `MOBILE-FIRST: assume a phone-sized square; scale type with clamp/vmin; the still final frame must read at 320px wide.`,
       `FINAL FRAME: land on a legible, screenshot-worthy still (or a calm keepsake-worthy loop).`,

@@ -12,6 +12,7 @@ import {
   Send,
   Loader2,
   Feather,
+  X,
 } from "lucide-react";
 import type { CodeSpec } from "@/lib/codedCards/registry";
 
@@ -32,7 +33,7 @@ type Card = {
 
 export const Route = createFileRoute("/card/$id")({
   loader: async ({ params }) => {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from("public_cards")
       .select("id, message, image_url, sender_name, recipient_name, occasion, medium, code_spec")
       .eq("id", params.id)
@@ -76,6 +77,16 @@ function toneFor(occasion?: string | null): Tone {
   if (/(anniversary|love|valentine)/.test(o)) return "romantic";
   if (/(thank)/.test(o)) return "warm";
   return "celebratory";
+}
+
+function isRsvpCard(cardOrOccasion?: Pick<Card, "occasion" | "message"> | string | null) {
+  const value =
+    typeof cardOrOccasion === "string"
+      ? cardOrOccasion
+      : `${cardOrOccasion?.occasion ?? ""} ${cardOrOccasion?.message ?? ""}`;
+  return /\b(rsvp|invitation|invite|wedding|baby shower|shower|graduation|save the date|event|party|dinner|launch)\b/i.test(
+    value,
+  );
 }
 
 const REACTIONS: Record<Tone, string[]> = {
@@ -205,6 +216,7 @@ function IntroGate({
   const accent =
     card.code_spec?.palette?.[2] ?? card.code_spec?.palette?.[1] ?? (light ? "#8a5a2b" : "#d8a657");
   const sender = card.sender_name?.trim();
+  const rsvp = isRsvpCard(card);
 
   return (
     <div
@@ -223,13 +235,25 @@ function IntroGate({
           className="text-[11px] uppercase tracking-[0.3em] opacity-60"
           style={{ fontFamily: "ui-monospace, Menlo, monospace" }}
         >
-          {card.occasion ? `A ${card.occasion.toLowerCase()} card` : "A card, hand-carried"}
+          {rsvp
+            ? card.occasion
+              ? `${card.occasion} response requested`
+              : "RSVP requested"
+            : card.occasion
+              ? `A ${card.occasion.toLowerCase()} card`
+              : "A card, hand-carried"}
         </p>
         <h1
           className="text-3xl leading-tight sm:text-5xl"
           style={{ fontFamily: '"Instrument Serif", Georgia, serif', letterSpacing: "-0.01em" }}
         >
-          {sender ? `${sender} sent you a card` : "Someone sent you a card"}
+          {rsvp
+            ? sender
+              ? `${sender} invited you`
+              : "You're invited"
+            : sender
+              ? `${sender} sent you a card`
+              : "Someone sent you a card"}
         </h1>
         {card.recipient_name && (
           <p
@@ -245,7 +269,7 @@ function IntroGate({
         ref={btnRef}
         type="button"
         onClick={onOpen}
-        aria-label="Open your card"
+        aria-label={rsvp ? "Open invitation" : "Open your card"}
         className="group relative inline-flex min-h-14 w-full max-w-xs items-center justify-center gap-3 rounded-full px-8 py-4 text-base font-medium outline-none transition focus-visible:ring-2 sm:w-auto sm:max-w-none sm:px-9"
         style={{ background: ink, color: bg }}
       >
@@ -254,7 +278,7 @@ function IntroGate({
           className={`absolute inset-0 rounded-full ${tone === "gentle" ? "" : "motion-safe:animate-ping"} opacity-10`}
           style={{ background: ink, animationDuration: "2.8s" }}
         />
-        Open your card
+        {rsvp ? "Open invitation" : "Open your card"}
         <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
       </button>
 
@@ -380,6 +404,7 @@ function ActionArea({
   const [replyOpen, setReplyOpen] = useState(false);
   const [reply, setReply] = useState("");
   const [replySent, setReplySent] = useState(false);
+  const [rsvpSent, setRsvpSent] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -421,6 +446,24 @@ function ActionArea({
     }
   }
 
+  async function sendRsvp(choice: string) {
+    if (rsvpSent || sending) return;
+    setSending(true);
+    const { error } = await supabase.from("card_responses").insert({
+      card_id: card.id,
+      kind: "rsvp",
+      content: choice,
+      author_name: card.recipient_name || null,
+    });
+    setSending(false);
+    if (error) {
+      toast.error("Couldn't save your RSVP. Try again?");
+    } else {
+      setRsvpSent(choice);
+      toast.success("RSVP saved");
+    }
+  }
+
   async function copyLink() {
     if (typeof window === "undefined") return;
     await navigator.clipboard.writeText(window.location.href);
@@ -457,24 +500,69 @@ function ActionArea({
     (card.medium === "art" && !!card.image_url);
 
   const sender = card.sender_name?.trim() || "the sender";
+  const rsvpMode = isRsvpCard(card);
+  const rsvpChoices = [
+    { label: "Yes, I'll be there", Icon: Check },
+    { label: "Maybe", Icon: MessageCircle },
+    { label: "Can't make it", Icon: X },
+  ];
 
   return (
     <div className="mx-auto mt-8 w-full max-w-md space-y-4 sm:mt-10">
-      {/* Reactions */}
-      <div className="flex flex-wrap items-center justify-center gap-2">
-        {REACTIONS[tone].map((emoji) => (
-          <button
-            key={emoji}
-            onClick={() => sendReaction(emoji)}
-            disabled={!!reacted}
-            aria-label={`React with ${emoji}`}
-            className={`grid h-12 w-12 place-items-center rounded-full text-xl transition hover:scale-110 disabled:hover:scale-100 ${reacted === emoji ? "scale-110 ring-2" : reacted ? "opacity-30" : ""}`}
-            style={{ background: surface, border: `1px solid ${border}` }}
-          >
-            {emoji}
-          </button>
-        ))}
-      </div>
+      {rsvpMode ? (
+        <div
+          className="space-y-3 rounded-2xl p-3"
+          style={{ background: surface, border: `1px solid ${border}` }}
+        >
+          <div className="text-center">
+            <p className="text-xs uppercase tracking-[0.18em] opacity-55">RSVP</p>
+            <p className="mt-1 text-sm opacity-75">Let {sender} know if you can make it.</p>
+          </div>
+          {rsvpSent ? (
+            <div
+              className="flex min-h-12 items-center justify-center gap-2 rounded-xl text-sm font-medium"
+              style={{ background: ink, color: bg }}
+            >
+              <Check className="h-4 w-4" /> {rsvpSent}
+            </div>
+          ) : (
+            <div className="grid gap-2 sm:grid-cols-3">
+              {rsvpChoices.map(({ label, Icon }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => sendRsvp(label)}
+                  disabled={sending}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition hover:opacity-90 disabled:opacity-45"
+                  style={{ background: ink, color: bg }}
+                >
+                  {sending ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Icon className="h-3.5 w-3.5" />
+                  )}
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {REACTIONS[tone].map((emoji) => (
+            <button
+              key={emoji}
+              onClick={() => sendReaction(emoji)}
+              disabled={!!reacted}
+              aria-label={`React with ${emoji}`}
+              className={`grid h-12 w-12 place-items-center rounded-full text-xl transition hover:scale-110 disabled:hover:scale-100 ${reacted === emoji ? "scale-110 ring-2" : reacted ? "opacity-30" : ""}`}
+              style={{ background: surface, border: `1px solid ${border}` }}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Reply */}
       {!replyOpen ? (
@@ -484,7 +572,7 @@ function ActionArea({
           style={{ background: ink, color: bg }}
         >
           <MessageCircle className="h-4 w-4" />
-          {tone === "romantic" ? "Reply privately" : `Reply to ${sender}`}
+          {rsvpMode ? "Add a note" : tone === "romantic" ? "Reply privately" : `Reply to ${sender}`}
         </button>
       ) : replySent ? (
         <div
@@ -508,7 +596,11 @@ function ActionArea({
             rows={3}
             maxLength={2000}
             autoFocus
-            placeholder={`Write a note back to ${sender}…`}
+            placeholder={
+              rsvpMode
+                ? "Add dietary notes, guest count, or a quick message…"
+                : `Write a note back to ${sender}…`
+            }
             className="w-full resize-none bg-transparent px-2 py-1.5 text-sm outline-none placeholder:opacity-50"
             style={{ color: ink }}
           />

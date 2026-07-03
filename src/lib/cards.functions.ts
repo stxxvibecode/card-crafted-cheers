@@ -26,7 +26,9 @@ export const generateMessage = createServerFn({ method: "POST" })
   .inputValidator((raw: unknown) => MessageInput.parse(raw))
   .handler(async ({ data }) => {
     const { lavaChat } = await import("./lava.server");
-    const system = `You write short, warm, personal greeting card messages. 2–4 sentences. Sincere, specific, never generic. No hashtags, no emojis unless the prompt clearly calls for them. Do not sign the card. Do not include "Dear ___" salutations — start with the message itself.`;
+    const system = `You write short, warm, personal card copy. 2–4 sentences. Sincere, specific, never generic. No hashtags, no emojis unless the prompt clearly calls for them. Do not sign the card. Do not include "Dear ___" salutations — start with the message itself.
+
+If the occasion or prompt is RSVP, invitation, wedding, baby shower, graduation, launch, dinner, party, save-the-date, or event-related, write invitation copy instead of a greeting-card note. Include known date/time/location/host details from the prompt, make the recipient feel invited, and make the response action clear.`;
     const user = [
       data.occasion ? `Occasion: ${data.occasion}` : null,
       data.recipientName ? `Recipient: ${data.recipientName}` : null,
@@ -94,22 +96,20 @@ export const saveCard = createServerFn({ method: "POST" })
       userId = userData?.user?.id ?? null;
     }
 
-    const { data: row, error } = await sb
-      .from("cards")
-      .insert({
-        user_id: userId,
-        prompt: data.prompt,
-        occasion: data.occasion ?? null,
-        message: data.message,
-        medium: data.medium,
-        image_url: data.imageDataUrl ?? null,
-        code_spec: data.codeSpec ?? null,
-        sender_name: data.senderName ?? null,
-        recipient_name: data.recipientName,
-        recipient_email: data.recipientEmail ?? null,
-      } as any)
-      .select("id")
-      .single();
+    const insert: Database["public"]["Tables"]["cards"]["Insert"] = {
+      user_id: userId,
+      prompt: data.prompt,
+      occasion: data.occasion ?? null,
+      message: data.message,
+      medium: data.medium,
+      image_url: data.imageDataUrl ?? null,
+      code_spec: data.codeSpec ?? null,
+      sender_name: data.senderName ?? null,
+      recipient_name: data.recipientName,
+      recipient_email: data.recipientEmail ?? null,
+    };
+
+    const { data: row, error } = await sb.from("cards").insert(insert).select("id").single();
 
     if (error || !row) throw new Error(error?.message ?? "Failed to save card");
     return { id: row.id as string };

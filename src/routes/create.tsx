@@ -69,6 +69,11 @@ const OCCASIONS = [
   "Get well",
   "Holiday",
   "Anniversary",
+  "Invitation",
+  "RSVP",
+  "Wedding",
+  "Baby shower",
+  "Graduation",
   "Just because",
 ];
 
@@ -1026,6 +1031,7 @@ function PlanCard({
   const proposedMedium = plan.medium ?? medium;
   const rows: Array<[string, string]> = [];
   if (plan.occasion) rows.push(["Occasion", plan.occasion]);
+  if (plan.occasion && isRsvpOccasion(plan.occasion)) rows.push(["Type", "RSVP collection"]);
   if (proposedMedium)
     rows.push(["Medium", proposedMedium === "art" ? "Painted art" : "Coded animation"]);
   if (proposedMedium === "code" && plan.codeTemplate) rows.push(["Template", plan.codeTemplate]);
@@ -1103,6 +1109,12 @@ function PlanCard({
         )}
       </div>
     </div>
+  );
+}
+
+function isRsvpOccasion(occasion?: string | null) {
+  return /(rsvp|invitation|invite|wedding|shower|graduation|save the date|event)/i.test(
+    occasion ?? "",
   );
 }
 
