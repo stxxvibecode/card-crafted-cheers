@@ -237,8 +237,8 @@ function Index() {
 
           {/* Drifting card stack */}
           <div
-            className="pgn-word relative mx-auto mt-16 h-[280px] w-full max-w-lg sm:mt-24 sm:h-[300px]"
-            style={{ animationDelay: "1380ms" }}
+            className="relative mx-auto mt-16 h-[280px] w-full max-w-lg sm:mt-24 sm:h-[300px]"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1380ms forwards" }}
             aria-hidden
           >
             {/* Back ghost */}
