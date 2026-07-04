@@ -1,19 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { SiteNav } from "@/components/site-nav";
-import { ArrowUp, Bird, Feather, Wand2, Mail, Heart, Code2, Palette, Sparkles } from "lucide-react";
+import { ArrowUp, Mail, Palette, Code2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: Index,
 });
-
-const EXAMPLES = [
-  "Birthday card for my sister who loves horses and mountains",
-  "Thank you card for my kid's teacher — playful, floral",
-  "Congrats on the new baby — soft pastels, moon and stars",
-  "Get well soon — cozy tea, warm blanket, cat on a windowsill",
-  "Anniversary card — sunlit picnic, two teacups, wildflowers",
-];
 
 const ROTATING = [
   "a birthday card for my dad who loves fishing at dawn…",
@@ -22,6 +14,9 @@ const ROTATING = [
   "a get-well card with a sleepy golden retriever…",
   "a congrats card for my best friend's first marathon…",
 ];
+
+const HEADLINE_A = "Words that linger,";
+const HEADLINE_B = "delivered by Pigeon.";
 
 function useTypewriter(lines: string[], active: boolean) {
   const [text, setText] = useState("");
@@ -38,7 +33,7 @@ function useTypewriter(lines: string[], active: boolean) {
         setText(full.slice(0, s.char));
         if (s.char >= full.length) {
           s.deleting = true;
-          t = setTimeout(tick, 2200);
+          t = setTimeout(tick, 2400);
           return;
         }
         t = setTimeout(tick, 34 + Math.random() * 40);
@@ -63,6 +58,48 @@ function useTypewriter(lines: string[], active: boolean) {
   return text;
 }
 
+/** Fade + rise on scroll, once. */
+function Reveal({
+  children,
+  delay = 0,
+  className = "",
+}: {
+  children: React.ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: "0px 0px -80px 0px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return (
+    <div
+      ref={ref}
+      className={className}
+      style={{
+        opacity: shown ? 1 : 0,
+        transform: shown ? "translateY(0)" : "translateY(24px)",
+        transition: `opacity 700ms cubic-bezier(.22,1,.36,1) ${delay}ms, transform 700ms cubic-bezier(.22,1,.36,1) ${delay}ms`,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 function Index() {
   const [prompt, setPrompt] = useState("");
   const [focused, setFocused] = useState(false);
@@ -74,272 +111,269 @@ function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground selection:bg-coral/20">
+      <style>{`
+        @keyframes pgn-word-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        @keyframes pgn-float-a { 0%,100% { transform: rotate(-6deg) translateY(0); } 50% { transform: rotate(-6deg) translateY(-10px); } }
+        @keyframes pgn-float-b { 0%,100% { transform: rotate(3deg) translateX(8px) translateY(0); } 50% { transform: rotate(3deg) translateX(8px) translateY(-14px); } }
+        @keyframes pgn-float-c { 0%,100% { transform: rotate(-1deg) translateX(-8px) translateY(0); } 50% { transform: rotate(-1deg) translateX(-8px) translateY(-6px); } }
+        @keyframes pgn-blob { 0%,100% { transform: scale(1) translate(0,0); opacity: .18; } 50% { transform: scale(1.08) translate(2%, -1%); opacity: .28; } }
+        .pgn-word { display:inline-block; opacity:0; animation: pgn-word-in .9s cubic-bezier(.22,1,.36,1) forwards; }
+        @media (prefers-reduced-motion: reduce) {
+          .pgn-word, [data-pgn-float], [data-pgn-blob] { animation: none !important; opacity: 1 !important; transform: none !important; }
+        }
+      `}</style>
+
       <SiteNav />
 
-      {/* Hero */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-hero-glow" aria-hidden />
-        <div className="absolute inset-0 bg-grid opacity-40" aria-hidden />
+      {/* ============ HERO ============ */}
+      <section className="relative flex min-h-[92vh] flex-col items-center justify-center overflow-hidden px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
+        {/* Ambient blobs */}
+        <div className="pointer-events-none absolute inset-0" aria-hidden>
+          <div
+            data-pgn-blob
+            className="absolute -left-[10%] -top-[12%] h-[46%] w-[46%] rounded-full bg-coral/40 blur-[130px]"
+            style={{ animation: "pgn-blob 11s ease-in-out infinite" }}
+          />
+          <div
+            data-pgn-blob
+            className="absolute -bottom-[14%] -right-[10%] h-[52%] w-[52%] rounded-full bg-[oklch(0.88_0.03_75)] blur-[140px] opacity-70"
+            style={{ animation: "pgn-blob 14s ease-in-out 2s infinite" }}
+          />
+        </div>
 
-        <div className="relative mx-auto grid max-w-6xl gap-10 px-3 pb-16 pt-10 sm:px-6 sm:pb-28 sm:pt-24 lg:grid-cols-[1.05fr_0.95fr] lg:items-center">
-          {/* Left: copy + chat */}
-          <div>
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-border bg-card/70 px-3.5 py-1.5 text-[11px] uppercase tracking-[0.14em] text-muted-foreground backdrop-blur">
-              <Feather className="h-3.5 w-3.5" strokeWidth={1.5} />
-              The unhurried e-card
-            </div>
+        <div className="relative z-10 mx-auto w-full max-w-4xl text-center">
+          <div className="mb-6 inline-flex items-center gap-2 text-[10px] uppercase tracking-[0.32em] text-coral sm:text-[11px]">
+            <span className="h-px w-6 bg-coral/60" />
+            The unhurried e-card
+            <span className="h-px w-6 bg-coral/60" />
+          </div>
 
-            <h1 className="font-display text-4xl leading-[0.98] tracking-tight sm:text-7xl">
-              <span className="block">Tell Pigeon</span>
-              <span className="block italic text-gradient">who it&apos;s for.</span>
-            </h1>
-
-            <p className="mt-5 max-w-md text-base text-muted-foreground sm:text-lg">
-              Chat with Pigeon like you&apos;d text a friend. It writes the message, paints the art
-              — or codes a live animated card — and delivers it.
-            </p>
-
-            {/* Chat window */}
-            <div className="mt-7 max-w-xl overflow-hidden rounded-2xl border border-border bg-card shadow-[0_40px_100px_-40px_oklch(0.22_0.015_60_/_0.3)] sm:mt-9 sm:rounded-3xl">
-              {/* Chat header */}
-              <div className="flex items-center gap-2.5 border-b border-border/60 bg-background/40 px-4 py-3">
-                <span className="grid h-7 w-7 place-items-center rounded-full border border-border bg-card">
-                  <Bird className="h-3.5 w-3.5" strokeWidth={1.5} />
+          <h1 className="font-serif text-[44px] italic leading-[1.02] tracking-tight text-foreground sm:text-6xl md:text-7xl">
+            <span className="block">
+              {HEADLINE_A.split(" ").map((w, i) => (
+                <span
+                  key={`a-${i}`}
+                  className="pgn-word mr-[0.22em]"
+                  style={{ animationDelay: `${140 + i * 110}ms` }}
+                >
+                  {w}
                 </span>
-                <div className="leading-tight">
-                  <div className="text-sm font-medium">Pigeon</div>
-                  <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    ready to build your card
-                  </div>
-                </div>
-              </div>
+              ))}
+            </span>
+            <span className="block">
+              {HEADLINE_B.split(" ").map((w, i) => (
+                <span
+                  key={`b-${i}`}
+                  className="pgn-word mr-[0.22em]"
+                  style={{ animationDelay: `${520 + i * 110}ms` }}
+                >
+                  {w}
+                </span>
+              ))}
+            </span>
+          </h1>
 
-              {/* Seed message */}
-              <div className="space-y-3 px-4 py-4">
-                <div className="flex items-end gap-2">
-                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border bg-background">
-                    <Bird className="h-3 w-3" strokeWidth={1.5} />
-                  </span>
-                  <div className="max-w-[85%] rounded-2xl rounded-bl-sm border border-border/60 bg-background/60 px-3.5 py-2.5 text-sm leading-relaxed text-foreground">
-                    Hi! Who&apos;s the card for, and what&apos;s the occasion? I&apos;ll take it
-                    from there.
-                  </div>
-                </div>
-              </div>
+          <p
+            className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 980ms forwards" }}
+          >
+            Tell Pigeon who it's for. It writes the note, paints the art — or codes a live
+            animated card — and carries it over.
+          </p>
 
-              {/* Composer */}
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  if (prompt.trim()) start(prompt.trim());
+          {/* Composer */}
+          <div
+            className="mx-auto mt-10 max-w-2xl rounded-2xl border border-border/60 bg-secondary/60 p-1 shadow-[0_40px_100px_-50px_oklch(0.22_0.015_60_/_0.35)] backdrop-blur"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1180ms forwards" }}
+          >
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (prompt.trim()) start(prompt.trim());
+              }}
+              className="flex items-end gap-2 rounded-xl bg-background px-3.5 py-3 text-left sm:gap-3"
+            >
+              <span className="mb-1 hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-background sm:grid">
+                <Mail className="h-4 w-4" strokeWidth={1.5} />
+              </span>
+              <textarea
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (prompt.trim()) start(prompt.trim());
+                  }
                 }}
-                className="border-t border-border/60 p-3"
+                placeholder={ghost || "Describe your card…"}
+                rows={2}
+                maxLength={500}
+                className="min-h-[44px] w-full resize-none bg-transparent py-1.5 font-serif text-lg italic leading-snug outline-none placeholder:text-muted-foreground/50"
+              />
+              <button
+                type="submit"
+                disabled={!prompt.trim()}
+                aria-label="Send to Pigeon"
+                className="mb-0.5 grid h-10 w-10 shrink-0 place-items-center rounded-full bg-foreground text-background transition hover:bg-coral disabled:opacity-30"
               >
-                <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-background px-3 py-2 focus-within:border-foreground/30">
-                  <textarea
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        if (prompt.trim()) start(prompt.trim());
-                      }
-                    }}
-                    placeholder={ghost || "Describe your card…"}
-                    rows={2}
-                    maxLength={500}
-                    className="w-full resize-none bg-transparent py-1.5 text-[15px] outline-none placeholder:text-muted-foreground/60"
-                  />
-                  <button
-                    type="submit"
-                    disabled={!prompt.trim()}
-                    aria-label="Start your card"
-                    className="mb-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full bg-foreground text-background transition hover:opacity-90 disabled:opacity-30"
-                  >
-                    <ArrowUp className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1 text-[11px] text-muted-foreground">
-                  <span className="inline-flex flex-wrap items-center gap-3">
-                    <span className="inline-flex items-center gap-1">
-                      <Palette className="h-3 w-3" /> Art
-                    </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Code2 className="h-3 w-3" /> Code
-                    </span>
-                  </span>
-                  <span>Enter to start</span>
-                </div>
-              </form>
+                <ArrowUp className="h-4 w-4" />
+              </button>
+            </form>
+            <div className="flex items-center justify-between px-3 py-2 text-[11px] uppercase tracking-[0.16em] text-muted-foreground/70">
+              <span className="inline-flex items-center gap-3">
+                <span className="inline-flex items-center gap-1.5">
+                  <Palette className="h-3 w-3" /> Art
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Code2 className="h-3 w-3" /> Code
+                </span>
+              </span>
+              <span>Enter to send</span>
             </div>
           </div>
 
-          {/* Right: card stack */}
-          <div className="relative hidden select-none lg:block" aria-hidden>
-            <style>{`
-              @keyframes pgn-float-a { 0%,100% { transform: rotate(-5deg) translateY(0); } 50% { transform: rotate(-5deg) translateY(-10px); } }
-              @keyframes pgn-float-b { 0%,100% { transform: rotate(3.5deg) translateY(0); } 50% { transform: rotate(3.5deg) translateY(-14px); } }
-              @keyframes pgn-float-c { 0%,100% { transform: rotate(-1deg) translateY(0); } 50% { transform: rotate(-1deg) translateY(-7px); } }
-              @keyframes pgn-shimmer { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
-            `}</style>
-
-            <div className="relative mx-auto h-[520px] w-[420px]">
-              {/* Card 1 — painted art */}
-              <div
-                className="absolute left-0 top-6 w-64 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_30px_70px_-30px_oklch(0.22_0.015_60_/_0.4)]"
-                style={{ animation: "pgn-float-a 7s ease-in-out infinite" }}
-              >
-                <div className="aspect-square w-full bg-[radial-gradient(circle_at_30%_25%,oklch(0.85_0.09_60),transparent_55%),radial-gradient(circle_at_75%_70%,oklch(0.78_0.1_320),transparent_50%),linear-gradient(160deg,oklch(0.93_0.04_80),oklch(0.82_0.06_250))]" />
-                <div className="px-4 py-3">
-                  <div className="font-display text-lg italic leading-tight">
-                    Happy birthday, Maya
-                  </div>
-                  <div className="mt-0.5 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Palette className="h-3 w-3" /> Painted art
-                  </div>
-                </div>
+          {/* Drifting card stack */}
+          <div
+            className="relative mx-auto mt-16 h-[280px] w-full max-w-lg sm:mt-24 sm:h-[300px]"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1380ms forwards" }}
+            aria-hidden
+          >
+            {/* Back ghost */}
+            <div
+              data-pgn-float
+              className="absolute inset-0 scale-95 rounded-sm border border-border bg-secondary opacity-40 shadow-sm"
+              style={{ animation: "pgn-float-a 9s ease-in-out infinite" }}
+            />
+            {/* Middle: quiet line */}
+            <div
+              data-pgn-float
+              className="absolute inset-0 rounded-sm border border-border bg-secondary p-7 text-left shadow-md"
+              style={{ animation: "pgn-float-b 8s ease-in-out .8s infinite" }}
+            >
+              <div className="mb-5 h-[2px] w-12 bg-coral/40" />
+              <p className="font-serif text-base italic leading-relaxed text-muted-foreground sm:text-lg">
+                &ldquo;The light between the pines reminds me of that summer…&rdquo;
+              </p>
+            </div>
+            {/* Front: signed card */}
+            <div
+              data-pgn-float
+              className="absolute inset-0 rounded-sm border border-border bg-card p-7 text-left shadow-2xl"
+              style={{ animation: "pgn-float-c 10s ease-in-out 1.6s infinite" }}
+            >
+              <div className="mb-6 flex items-start justify-between">
+                <span className="grid h-10 w-10 place-items-center rounded-full bg-coral/10">
+                  <span className="h-3.5 w-3.5 rounded-full bg-coral" />
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground/60">
+                  Pigeon № 002
+                </span>
               </div>
-
-              {/* Card 2 — coded card */}
-              <div
-                className="absolute right-0 top-0 w-60 overflow-hidden rounded-2xl border border-border bg-[oklch(0.2_0.02_270)] text-white shadow-[0_30px_70px_-30px_oklch(0.22_0.015_60_/_0.5)]"
-                style={{ animation: "pgn-float-b 8s ease-in-out 0.8s infinite" }}
-              >
-                <div className="relative aspect-square w-full overflow-hidden">
-                  <div
-                    className="absolute inset-0 opacity-90"
-                    style={{
-                      background:
-                        "linear-gradient(120deg, oklch(0.55 0.2 300), oklch(0.65 0.18 200), oklch(0.7 0.16 140), oklch(0.55 0.2 300))",
-                      backgroundSize: "200% 200%",
-                      animation: "pgn-shimmer 6s linear infinite",
-                    }}
-                  />
-                  <div className="absolute inset-0 grid place-items-center px-5 text-center">
-                    <div>
-                      <div className="font-display text-2xl italic leading-tight">
-                        Congrats, Leo!
-                      </div>
-                      <div className="mt-1 text-[11px] uppercase tracking-[0.2em] opacity-70">
-                        № 001 — for you
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1 px-4 py-3 text-[11px] text-white/70">
-                  <Code2 className="h-3 w-3" /> Live coded card
-                </div>
-              </div>
-
-              {/* Card 3 — quiet note */}
-              <div
-                className="absolute bottom-0 left-16 w-72 overflow-hidden rounded-2xl border border-border bg-card shadow-[0_30px_70px_-30px_oklch(0.22_0.015_60_/_0.4)]"
-                style={{ animation: "pgn-float-c 9s ease-in-out 1.6s infinite" }}
-              >
-                <div className="px-5 py-5">
-                  <div className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
-                    Thank you
-                  </div>
-                  <div className="mt-2 font-display text-xl italic leading-snug">
-                    "You showed up when it mattered — and it mattered a lot."
-                  </div>
-                  <div className="mt-3 flex items-center gap-1 text-[11px] text-muted-foreground">
-                    <Sparkles className="h-3 w-3" /> Message drafted by You!&nbsp;
-                  </div>
-                </div>
-              </div>
+              <p className="font-serif text-xl italic leading-relaxed text-foreground sm:text-2xl">
+                May your coffee be hot and your heart light. Thinking of you, always.
+              </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="border-t border-border/60 bg-card/30">
-        <div className="mx-auto max-w-6xl px-3 py-12 sm:px-6 sm:py-16">
-          <div className="grid gap-8 sm:grid-cols-3">
+      {/* ============ HOW IT WORKS ============ */}
+      <section className="border-y border-border/60 bg-secondary/50">
+        <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 sm:py-32">
+          <div className="grid gap-14 sm:grid-cols-3 sm:gap-12">
             {[
               {
                 n: "01",
+                eyebrow: "Compose",
                 title: "Say who it's for",
-                desc: "One sentence is plenty. Pigeon asks a follow-up if it helps.",
+                desc: "One sentence is plenty — a name, an occasion, a private joke. Pigeon asks a follow-up if it helps.",
               },
               {
                 n: "02",
-                title: "Pick art or code",
-                desc: "A painted illustration, or a live animated card written in code.",
+                eyebrow: "Curate",
+                title: "Choose art or code",
+                desc: "A hand-painted illustration, or a live animated card written in code just for them.",
               },
               {
                 n: "03",
-                title: "Send it on",
-                desc: "They get a beautiful link that opens anywhere. No account needed.",
+                eyebrow: "Deliver",
+                title: "Send it on its way",
+                desc: "They receive a quiet link that opens anywhere — no account, no ads, no clutter.",
               },
-            ].map(({ n, title, desc }) => (
-              <div key={n} className="flex gap-4">
-                <span className="font-display text-3xl italic text-muted-foreground/50">{n}</span>
-                <div>
-                  <h3 className="font-display text-xl leading-tight">{title}</h3>
-                  <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+            ].map((s, i) => (
+              <Reveal key={s.n} delay={i * 120} className="space-y-3">
+                <div className="flex items-baseline gap-3">
+                  <span className="font-serif text-2xl italic text-coral">{s.n}.</span>
+                  <span className="text-[11px] font-medium uppercase tracking-[0.28em] text-coral">
+                    {s.eyebrow}
+                  </span>
                 </div>
-              </div>
+                <h3 className="font-serif text-2xl italic leading-tight text-foreground sm:text-3xl">
+                  {s.title}
+                </h3>
+                <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+                  {s.desc}
+                </p>
+              </Reveal>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="mx-auto max-w-6xl px-3 py-14 sm:px-6 sm:py-20">
-        <div className="grid gap-6 md:grid-cols-3">
-          {[
-            {
-              icon: Wand2,
-              title: "One-of-a-kind art",
-              desc: "Every card is painted fresh from your prompt. No stock photos, no repeats.",
-            },
-            {
-              icon: Heart,
-              title: "Words that land",
-              desc: "AI drafts a warm, personal note. Edit it, or send it as-is.",
-            },
-            {
-              icon: Mail,
-              title: "Delivered by email",
-              desc: "Enter a name and email. They get a beautiful link they can open anywhere.",
-            },
-          ].map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="rounded-2xl border border-border bg-card p-7">
-              <span className="mb-5 inline-grid h-10 w-10 place-items-center rounded-full border border-border bg-background text-foreground">
-                <Icon className="h-4 w-4" strokeWidth={1.5} />
+      {/* ============ DESIGNED FOR DEPTH ============ */}
+      <section className="mx-auto max-w-4xl px-4 py-24 sm:px-6 sm:py-32">
+        <Reveal className="mb-14 flex flex-col items-center text-center">
+          <h2 className="font-serif text-4xl italic text-foreground sm:text-5xl">
+            Designed for depth.
+          </h2>
+          <div className="mt-5 h-[2px] w-12 bg-coral" />
+        </Reveal>
+
+        <Reveal delay={140}>
+          <div className="overflow-hidden rounded-2xl border border-border bg-card p-10 shadow-[0_30px_80px_-40px_oklch(0.22_0.015_60_/_0.35)] sm:p-16">
+            <div className="mx-auto max-w-xl text-center">
+              <span className="mx-auto mb-6 grid h-12 w-12 place-items-center rounded-full bg-coral/10">
+                <Palette className="h-5 w-5 text-coral" strokeWidth={1.5} />
               </span>
-              <h3 className="font-display text-2xl leading-tight">{title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{desc}</p>
+              <h3 className="font-serif text-2xl italic leading-snug text-foreground sm:text-3xl">
+                Every card, painted fresh from your words.
+              </h3>
+              <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
+                No stock photos, no repeats. Pigeon reads the room, drafts a warm note, and
+                composes the art — or the code — around it.
+              </p>
             </div>
-          ))}
-        </div>
+          </div>
+        </Reveal>
       </section>
 
-      {/* CTA */}
-      <section className="mx-auto max-w-4xl px-3 pb-16 text-center sm:px-6 sm:pb-24">
-        <div className="rounded-2xl border border-border bg-card p-8 sm:rounded-3xl sm:p-16">
-          <h2 className="font-display text-4xl italic sm:text-6xl">
-            <span className="text-gradient">Send something lovely.</span>
+      {/* ============ FINAL CTA ============ */}
+      <section className="bg-[oklch(0.2_0.015_60)] px-4 py-28 text-center sm:px-6 sm:py-36">
+        <Reveal>
+          <h2 className="mx-auto max-w-3xl font-serif text-4xl italic leading-[1.05] text-[#F5F3EE] sm:text-6xl">
+            Send something lovely.
           </h2>
-          <p className="mx-auto mt-4 max-w-md text-sm text-muted-foreground sm:text-base">
+          <p className="mx-auto mt-6 max-w-md text-sm leading-relaxed text-[#F5F3EE]/60 sm:text-base">
             A minute of your afternoon. A moment of someone else&apos;s week.
           </p>
-          <Link
-            to="/create"
-            className="mt-8 inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3 text-sm font-medium text-background transition hover:opacity-90"
-          >
-            Compose a card <ArrowUp className="h-4 w-4 rotate-45" />
-          </Link>
-        </div>
+          <div className="mt-10">
+            <Link
+              to="/create"
+              className="inline-flex items-center gap-2 rounded-full bg-coral px-8 py-4 text-sm font-medium uppercase tracking-[0.16em] text-[#F5F3EE] transition hover:opacity-90"
+            >
+              Compose your first Pigeon <ArrowUp className="h-4 w-4 rotate-45" />
+            </Link>
+          </div>
+          <p className="mt-8 text-[10px] uppercase tracking-[0.32em] text-[#F5F3EE]/40">
+            Delivered by hand — or something like it
+          </p>
+        </Reveal>
       </section>
 
-      <footer className="border-t border-border/60 py-8 text-center text-xs tracking-wide text-muted-foreground">
+      <footer className="border-t border-border/60 bg-background py-8 text-center text-xs tracking-wide text-muted-foreground">
         © {new Date().getFullYear()} Pigeon · Delivered by hand, or something like it.
       </footer>
     </div>

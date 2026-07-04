@@ -13,6 +13,9 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --font-sans: "Roboto", "Google Sans", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Roboto", "Google Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "EB Garamond", "Instrument Serif", ui-serif, Georgia, serif;
+
+  --color-coral: oklch(0.62 0.14 40);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
