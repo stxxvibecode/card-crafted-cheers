@@ -1,26 +1,24 @@
-## Plan: make coded-card outputs visibly vary
+## Plan: create a `premium-site-project` skill from the pasted CLAUDE.md
 
-1. **Always generate custom AI code for Code mode**
-   - Stop defaulting to the small built-in template set when the user chooses Code.
-   - Use AI mode as the default for new coded cards so the model can create unique layouts instead of repeating template families.
+The pasted content is a full skill body (tone, stack defaults, hero/motion/typography/color rules, Nano Banana + Kling prompt patterns, 6-phase build workflow, anti-patterns). It's situational — only relevant when building premium marketing/agency sites — so a skill is the right shape (not always-on knowledge).
 
-2. **Add a real variation brief to every code generation**
-   - Generate a server-side `variationProfile` from the seed with explicit constraints: design move, alignment, type pairing, motion motif, density, and composition anchor.
-   - Pass that profile into the AI prompt so each run has a concrete, different direction instead of a vague “vary it” instruction.
+### Files to create
 
-3. **Strengthen the self-check beyond the `// MOVE` line**
-   - Detect repeated layout signatures, not just repeated move names.
-   - Flag patterns like centered typography, same headline position, same message placement, same particle field, same font stack, and same SVG-circle motif.
-   - If the output repeats, retry once with a forced new profile.
+1. **`.agents/skills/premium-site-project/SKILL.md`**
+   - YAML frontmatter:
+     - `name: premium-site-project`
+     - `description: Build premium, motion-driven marketing sites with an agency feel — Next.js + Tailwind + Motion defaults, editorial typography, video/image hero patterns, Nano Banana 2 image prompts, Kling motion prompts, and a 6-phase build workflow. Trigger when the user is designing or building a landing page, hero section, agency-style site, or asks for premium visual/motion direction.`
+   - Body: the full pasted CLAUDE.md content, lightly cleaned:
+     - Drop the top "Drop this file in the same folder…" meta paragraph (it's install instructions for the human, not skill content).
+     - Keep everything else verbatim: tone rules, default stack, hero patterns, Motion snippets, typography table, color palette, 21st.dev workflow, 6-phase build, reference-site handling, deploy steps, anti-patterns, file structure, comment tone.
+     - Preserve all code blocks exactly.
 
-4. **Track recent coded-card signatures per occasion**
-   - Keep recent design moves plus layout signatures in the existing server-side LRU cache.
-   - Prevent the last few “Thank you” cards, for example, from reusing the same structure.
+### Activation
 
-5. **Make “rebuild” feel like a fresh direction**
-   - For new builds, request a fresh composition.
-   - For edits, preserve the existing design only when the user asks for a small tweak; if they say “different,” “more variation,” or rebuild from chat/editor, allow a full redesign.
+2. Call `skills--apply_draft` with `.agents/skills/premium-site-project` so the skill becomes active and surfaces automatically on relevant tasks.
 
-6. **Verify with generated samples**
-   - Run a few coded-card generations for the same prompt and confirm their move/layout signatures differ.
-   - Keep the fix focused on code-card variety only; no unrelated UI or database changes.
+### Not doing
+
+- No changes to the current app (Pigeon card project) — this is skill authoring only.
+- Not creating references/, scripts/, or assets/ subfolders; the content fits comfortably in one SKILL.md.
+- Not fixing the earlier open question about Art medium auto-generating an image — happy to revisit that in a follow-up.
