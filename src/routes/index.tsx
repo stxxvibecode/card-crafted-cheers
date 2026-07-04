@@ -175,8 +175,8 @@ function Index() {
           </h1>
 
           <p
-            className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg pgn-word"
-            style={{ animationDelay: "980ms" }}
+            className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 980ms forwards" }}
           >
             Tell Pigeon who it's for. It writes the note, paints the art — or codes a live
             animated card — and carries it over.
@@ -184,8 +184,8 @@ function Index() {
 
           {/* Composer */}
           <div
-            className="pgn-word mx-auto mt-10 max-w-2xl rounded-2xl border border-border/60 bg-secondary/60 p-1 shadow-[0_40px_100px_-50px_oklch(0.22_0.015_60_/_0.35)] backdrop-blur"
-            style={{ animationDelay: "1180ms" }}
+            className="mx-auto mt-10 max-w-2xl rounded-2xl border border-border/60 bg-secondary/60 p-1 shadow-[0_40px_100px_-50px_oklch(0.22_0.015_60_/_0.35)] backdrop-blur"
+            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1180ms forwards" }}
           >
             <form
               onSubmit={(e) => {
