@@ -1,7 +1,19 @@
 import { useMemo } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Ribbons({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
+export function Ribbons({
+  phrase,
+  message,
+  palette,
+  tempo,
+  seed,
+}: {
+  phrase: string;
+  message?: string;
+  palette: string[];
+  tempo: number;
+  seed: number;
+}) {
   const [bg, ...accents] = palette;
   const ribbons = useMemo(() => {
     const r = rng(seed);
@@ -21,7 +33,11 @@ export function Ribbons({ phrase, message, palette, tempo, seed }: { phrase: str
         @keyframes pgn-draw { to { stroke-dashoffset: 0; } }
         @keyframes pgn-drift { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
       `}</style>
-      <svg viewBox="0 0 500 500" preserveAspectRatio="xMidYMid slice" className="absolute inset-0 h-full w-full">
+      <svg
+        viewBox="0 0 500 500"
+        preserveAspectRatio="xMidYMid slice"
+        className="absolute inset-0 h-full w-full"
+      >
         {ribbons.map((rb) => (
           <path
             key={rb.i}
@@ -41,11 +57,29 @@ export function Ribbons({ phrase, message, palette, tempo, seed }: { phrase: str
       </svg>
       <div className="absolute inset-0 grid place-items-center px-6 text-center">
         <div className="flex max-w-[90%] flex-col items-center gap-4">
-          <h1 style={{ color: palette[1] ?? "#111", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.02, letterSpacing: "-0.02em", fontStyle: "italic" }}>
+          <h1
+            style={{
+              color: palette[1] ?? "#111",
+              fontFamily: '"Instrument Serif", serif',
+              fontSize: "clamp(2.25rem, 7vw, 4.5rem)",
+              lineHeight: 1.02,
+              letterSpacing: "-0.02em",
+              fontStyle: "italic",
+            }}
+          >
             {phrase}
           </h1>
           {message ? (
-            <p style={{ color: palette[1] ?? "#111", opacity: 0.8, fontFamily: '"Instrument Serif", serif', fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)", lineHeight: 1.4, maxWidth: "36ch" }}>
+            <p
+              style={{
+                color: palette[1] ?? "#111",
+                opacity: 0.8,
+                fontFamily: '"Instrument Serif", serif',
+                fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)",
+                lineHeight: 1.4,
+                maxWidth: "36ch",
+              }}
+            >
               {message}
             </p>
           ) : null}

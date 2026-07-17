@@ -176,16 +176,22 @@ function Index() {
 
           <p
             className="mx-auto mt-6 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg"
-            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 980ms forwards" }}
+            style={{
+              opacity: 0,
+              animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 980ms forwards",
+            }}
           >
-            Tell Pigeon who it's for. It writes the note, paints the art — or codes a live
-            animated card — and carries it over.
+            Tell Pigeon who it's for. It writes the note, paints the art — or codes a live animated
+            card — and carries it over.
           </p>
 
           {/* Composer */}
           <div
             className="mx-auto mt-10 max-w-2xl rounded-2xl border border-border/60 bg-secondary/60 p-1 shadow-[0_40px_100px_-50px_oklch(0.22_0.015_60_/_0.35)] backdrop-blur"
-            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1180ms forwards" }}
+            style={{
+              opacity: 0,
+              animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1180ms forwards",
+            }}
           >
             <form
               onSubmit={(e) => {
@@ -238,7 +244,10 @@ function Index() {
           {/* Drifting card stack */}
           <div
             className="relative mx-auto mt-16 h-[280px] w-full max-w-lg sm:mt-24 sm:h-[300px]"
-            style={{ opacity: 0, animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1380ms forwards" }}
+            style={{
+              opacity: 0,
+              animation: "pgn-word-in .9s cubic-bezier(.22,1,.36,1) 1380ms forwards",
+            }}
             aria-hidden
           >
             {/* Back ghost */}
@@ -314,9 +323,7 @@ function Index() {
                 <h3 className="font-serif text-2xl italic leading-tight text-foreground sm:text-3xl">
                   {s.title}
                 </h3>
-                <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
-                  {s.desc}
-                </p>
+                <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
               </Reveal>
             ))}
           </div>
@@ -342,8 +349,8 @@ function Index() {
                 Every card, painted fresh from your words.
               </h3>
               <p className="mx-auto mt-4 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-                No stock photos, no repeats. Pigeon reads the room, drafts a warm note, and
-                composes the art — or the code — around it.
+                No stock photos, no repeats. Pigeon reads the room, drafts a warm note, and composes
+                the art — or the code — around it.
               </p>
             </div>
           </div>

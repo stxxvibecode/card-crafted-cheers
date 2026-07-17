@@ -23,7 +23,7 @@ const MessageInput = z.object({
 });
 
 export const generateMessage = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => MessageInput.parse(raw))
+  .validator((raw: unknown) => MessageInput.parse(raw))
   .handler(async ({ data }) => {
     const { lavaChat } = await import("./lava.server");
     const system = `You write short, warm, personal card copy. 2–4 sentences. Sincere, specific, never generic. No hashtags, no emojis unless the prompt clearly calls for them. Do not sign the card. Do not include "Dear ___" salutations — start with the message itself.
@@ -81,7 +81,7 @@ const SaveInput = z
   });
 
 export const saveCard = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => SaveInput.parse(raw))
+  .validator((raw: unknown) => SaveInput.parse(raw))
   .handler(async ({ data }) => {
     // Read optional bearer to associate to a user; otherwise anonymous card.
     const { getRequest } = await import("@tanstack/react-start/server");
@@ -120,7 +120,7 @@ export const saveCard = createServerFn({ method: "POST" })
 const SendInput = z.object({ cardId: z.string().uuid() });
 
 export const sendCard = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => SendInput.parse(raw))
+  .validator((raw: unknown) => SendInput.parse(raw))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: card, error } = await supabaseAdmin

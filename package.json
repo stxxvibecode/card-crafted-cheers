@@ -9,7 +9,11 @@
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test",
+    "quality:cards": "bun scripts/quality-cards.ts"
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^3.0.2",

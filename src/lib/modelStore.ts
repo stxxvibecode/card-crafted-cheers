@@ -22,7 +22,9 @@ function hydrate() {
         image: parsed.image || DEFAULT_IMAGE,
       };
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 }
 
 export function useModelPrefs() {
@@ -31,14 +33,24 @@ export function useModelPrefs() {
   useEffect(() => {
     const cb = (m: ModelPrefs) => setState(m);
     listeners.add(cb);
-    return () => { listeners.delete(cb); };
+    return () => {
+      listeners.delete(cb);
+    };
   }, []);
 
   const update = useCallback((patch: Partial<ModelPrefs>) => {
     current = { ...current, ...patch };
-    try { localStorage.setItem(KEY, JSON.stringify(current)); } catch { /* ignore */ }
+    try {
+      localStorage.setItem(KEY, JSON.stringify(current));
+    } catch {
+      /* ignore */
+    }
     listeners.forEach((l) => l(current));
   }, []);
 
-  return { prefs: state, setChat: (v: string) => update({ chat: v }), setImage: (v: string) => update({ image: v }) };
+  return {
+    prefs: state,
+    setChat: (v: string) => update({ chat: v }),
+    setImage: (v: string) => update({ image: v }),
+  };
 }

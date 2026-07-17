@@ -45,13 +45,25 @@ export function CodedCard({
     seed: spec.seed,
   };
   switch (spec.template) {
-    case "confetti":  return <Confetti {...props} />;
-    case "fireworks": return <Fireworks {...props} />;
-    case "kinetic":   return <KineticSerif {...props} />;
-    case "hearts":    return <Hearts {...props} />;
-    case "starfield": return <Starfield {...props} />;
-    case "ribbons":   return <Ribbons {...props} />;
-    case "ai":        return spec.source ? <AISnippet source={spec.source} {...props} /> : <KineticSerif {...props} />;
-    default:          return <KineticSerif {...props} />;
+    case "confetti":
+      return <Confetti {...props} />;
+    case "fireworks":
+      return <Fireworks {...props} />;
+    case "kinetic":
+      return <KineticSerif {...props} />;
+    case "hearts":
+      return <Hearts {...props} />;
+    case "starfield":
+      return <Starfield {...props} />;
+    case "ribbons":
+      return <Ribbons {...props} />;
+    case "ai":
+      return spec.source ? (
+        <AISnippet source={spec.source} {...props} />
+      ) : (
+        <KineticSerif {...props} />
+      );
+    default:
+      return <KineticSerif {...props} />;
   }
 }

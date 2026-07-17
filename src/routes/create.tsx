@@ -13,6 +13,8 @@ import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/regi
 import { phraseFor } from "@/lib/occasion";
 import { ModelPicker } from "@/components/ModelPicker";
 import { useModelPrefs } from "@/lib/modelStore";
+import { useCardBuild } from "@/hooks/use-card-build";
+import type { BuildLease } from "@/lib/build-lifecycle";
 
 import {
   Loader2,
@@ -137,19 +139,22 @@ type PlanUpdates = {
   senderName: string | null;
   medium: Medium | null;
   codeTemplate:
-    | "confetti"
-    | "fireworks"
-    | "kinetic"
-    | "hearts"
-    | "starfield"
-    | "ribbons"
-    | "ai"
-    | null;
+    "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
   codeMotion: string | null;
   codePalette: string[] | null;
   regenerateImage: boolean;
   instruction?: string; // last user message that produced the plan (used for edit mode)
   built?: boolean;
+};
+
+type CodeBuildOptions = {
+  mode: "template" | "ai" | "edit";
+  templateHint?: Exclude<TemplateId, "ai">;
+  motionHint?: string;
+  paletteHint?: string[];
+  instruction?: string;
+  phrase?: string;
+  message?: string;
 };
 
 function Create() {
@@ -192,6 +197,7 @@ function Create() {
   ]);
   const [chatBusy, setChatBusy] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<PlanUpdates | null>(null);
+  const cardBuild = useCardBuild();
 
   const msgFn = useServerFn(generateMessage);
   const saveFn = useServerFn(saveCard);
@@ -203,37 +209,35 @@ function Create() {
     draftRef.current = draft;
   }, [draft]);
 
-  const regenerateImage = useCallback(async (imagePrompt: string, occasion?: string) => {
-    setImage(null);
-    setIsFinalImage(false);
-    setImgLoading(true);
-    try {
-      await streamImage(
-        "/api/generate-image",
-        { prompt: imagePrompt, occasion, model: prefsRef.current.image },
-        (url, final) => {
-          setImage(url);
-          if (final) setIsFinalImage(true);
-        },
-      );
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Image generation failed");
-    } finally {
-      setImgLoading(false);
-    }
-  }, []);
+  const regenerateImage = useCallback(
+    async (imagePrompt: string, occasion: string | undefined, lease: BuildLease) => {
+      setImgLoading(true);
+      try {
+        await streamImage(
+          "/api/generate-image",
+          { prompt: imagePrompt, occasion, model: prefsRef.current.image },
+          (url, final) => {
+            if (!cardBuild.isCurrent(lease)) return;
+            setImage(url);
+            setIsFinalImage(final);
+          },
+          lease.signal,
+        );
+        return true;
+      } catch (e) {
+        if (cardBuild.isCurrent(lease) && e instanceof Error && e.name !== "AbortError") {
+          toast.error(e.message || "Image generation failed");
+        }
+        return false;
+      } finally {
+        if (cardBuild.isCurrent(lease)) setImgLoading(false);
+      }
+    },
+    [cardBuild],
+  );
 
   const regenerateCode = useCallback(
-    async (opts: {
-      mode: "template" | "ai" | "edit";
-      templateHint?: Exclude<TemplateId, "ai">;
-      motionHint?: string;
-      paletteHint?: string[];
-      instruction?: string;
-      phrase?: string;
-      message?: string;
-    }) => {
-      const d = draftRef.current;
+    async (opts: CodeBuildOptions, d: Draft, lease: BuildLease, seed?: number) => {
       setCodeLoading(true);
       try {
         const spec = await codeFn({
@@ -256,17 +260,102 @@ function Create() {
                     source: d.codeSpec.source,
                   }
                 : undefined,
+            seed,
             model: prefsRef.current.chat,
           },
         });
-        setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+        if (cardBuild.isCurrent(lease)) {
+          setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+        }
+        return true;
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : "Coded card failed");
+        if (cardBuild.isCurrent(lease)) {
+          toast.error(e instanceof Error ? e.message : "Coded card failed");
+        }
+        return false;
       } finally {
-        setCodeLoading(false);
+        if (cardBuild.isCurrent(lease)) setCodeLoading(false);
       }
     },
-    [codeFn],
+    [cardBuild, codeFn],
+  );
+
+  const buildCard = useCallback(
+    async ({
+      target,
+      code,
+      forceMessage = false,
+      newSeed = false,
+    }: {
+      target: Draft;
+      code?: CodeBuildOptions;
+      forceMessage?: boolean;
+      newSeed?: boolean;
+    }) => {
+      const lease = cardBuild.start();
+      setDraft(target);
+      let finalDraft = target;
+
+      if ((forceMessage || !target.message.trim()) && target.prompt.trim()) {
+        cardBuild.setBuildStatus(lease, "writing");
+        setMsgLoading(true);
+        try {
+          const result = await msgFn({
+            data: {
+              prompt: target.prompt,
+              occasion: target.occasion,
+              recipientName: target.recipientName || undefined,
+              senderName: target.senderName || undefined,
+              model: prefsRef.current.chat,
+            },
+          });
+          if (!cardBuild.isCurrent(lease)) return;
+          finalDraft = { ...target, message: result.message };
+          setDraft(finalDraft);
+        } catch (e) {
+          if (cardBuild.isCurrent(lease)) {
+            toast.error(e instanceof Error ? e.message : "Message generation failed");
+            cardBuild.setBuildStatus(lease, "failed");
+          }
+          return;
+        } finally {
+          if (cardBuild.isCurrent(lease)) setMsgLoading(false);
+        }
+      }
+
+      if (!cardBuild.isCurrent(lease)) return;
+      let completed = false;
+      if (finalDraft.medium === "art") {
+        if (!finalDraft.prompt.trim()) {
+          toast.error("Add a description of the card before building.");
+          cardBuild.setBuildStatus(lease, "failed");
+          return;
+        }
+        cardBuild.setBuildStatus(lease, "rendering");
+        completed = await regenerateImage(finalDraft.prompt, finalDraft.occasion, lease);
+      } else if (finalDraft.medium === "code") {
+        cardBuild.setBuildStatus(lease, "designing");
+        const resolvedCode = code ?? { mode: finalDraft.codeSpec ? "edit" : "ai" };
+        const preservedSeed = newSeed ? undefined : finalDraft.codeSpec?.seed;
+        completed = await regenerateCode(resolvedCode, finalDraft, lease, preservedSeed);
+      }
+
+      if (cardBuild.isCurrent(lease)) {
+        cardBuild.setBuildStatus(lease, completed ? "ready" : "failed");
+      }
+    },
+    [cardBuild, msgFn, regenerateCode, regenerateImage],
+  );
+
+  const requestCodeBuild = useCallback(
+    async (code: CodeBuildOptions) => {
+      await buildCard({
+        target: draftRef.current,
+        code,
+        newSeed: code.mode === "ai",
+      });
+    },
+    [buildCard],
   );
 
   async function handleSend(text: string) {
@@ -338,85 +427,36 @@ function Create() {
         return;
       }
 
-      const newPrompt = plan.prompt ?? currentDraft.prompt;
-      const newOccasion = plan.occasion ?? currentDraft.occasion;
-      const nextMessage = plan.message ?? currentDraft.message;
-
-      setDraft((d) => ({
-        ...d,
-        prompt: plan.prompt ?? d.prompt,
-        occasion: plan.occasion ?? d.occasion,
-        message: plan.message ?? d.message,
-        recipientName: plan.recipientName ?? d.recipientName,
-        senderName: plan.senderName ?? d.senderName,
-        medium: targetMedium,
-      }));
       setPendingPlan((p) => (p && p.id === plan.id ? { ...p, built: true } : p));
 
-      // Draft a message if the plan didn't include one and we still don't have one
-      if (!nextMessage.trim() && newPrompt.trim()) {
-        setMsgLoading(true);
-        msgFn({
-          data: {
-            prompt: newPrompt,
-            occasion: newOccasion,
-            recipientName: currentDraft.recipientName || undefined,
-            senderName: currentDraft.senderName || undefined,
-            model: prefsRef.current.chat,
-          },
-        })
-          .then((r) => {
-            setDraft((d) => ({ ...d, message: r.message }));
-            // Re-render the coded card with the fresh message baked in.
-            if (targetMedium === "code") {
-              void regenerateCode({
-                mode: draftRef.current.codeSpec ? "edit" : "ai",
-                message: r.message,
-              });
-            }
-          })
-          .catch((e) => toast.error(e instanceof Error ? e.message : "Message failed"))
-          .finally(() => setMsgLoading(false));
-      }
-
-      if (targetMedium === "art") {
-        if (!newPrompt.trim()) {
-          toast.error("Add a description of the card before building.");
-          return;
-        }
-        void regenerateImage(newPrompt, newOccasion ?? undefined);
-      } else {
-        const hint = plan.codeTemplate;
-        const templateHint = (hint && hint !== "ai" ? hint : undefined) as
-          | Exclude<TemplateId, "ai">
-          | undefined;
-        const motionHint = plan.codeMotion ?? undefined;
-        const paletteHint = plan.codePalette ?? undefined;
-        const messageForCard = nextMessage || undefined;
-        const freshDesign = wantsFreshCodeDesign(plan.instruction);
-
-        // If we already have a code spec, iterate for small tweaks; rebuild from scratch for variation requests.
-        if (currentDraft.codeSpec && !freshDesign) {
-          void regenerateCode({
-            mode: "edit",
-            templateHint,
-            motionHint,
-            paletteHint,
-            instruction: plan.instruction,
-            message: messageForCard,
-          });
-        } else {
-          void regenerateCode({
-            mode: "ai",
-            templateHint,
-            motionHint,
-            paletteHint,
-            message: messageForCard,
-          });
-        }
-      }
+      const target: Draft = {
+        ...currentDraft,
+        prompt: plan.prompt ?? currentDraft.prompt,
+        occasion: plan.occasion ?? currentDraft.occasion,
+        message: plan.message ?? currentDraft.message,
+        recipientName: plan.recipientName ?? currentDraft.recipientName,
+        senderName: plan.senderName ?? currentDraft.senderName,
+        medium: targetMedium,
+      };
+      const freshDesign = wantsFreshCodeDesign(plan.instruction);
+      const templateHint =
+        plan.codeTemplate && plan.codeTemplate !== "ai" ? plan.codeTemplate : undefined;
+      await buildCard({
+        target,
+        newSeed: freshDesign,
+        code:
+          target.medium === "code"
+            ? {
+                mode: target.codeSpec && !freshDesign ? "edit" : "ai",
+                templateHint,
+                motionHint: plan.codeMotion ?? undefined,
+                paletteHint: plan.codePalette ?? undefined,
+                instruction: plan.instruction,
+              }
+            : undefined,
+      });
     },
-    [msgFn, regenerateImage, regenerateCode],
+    [buildCard],
   );
 
   useEffect(() => {
@@ -433,69 +473,28 @@ function Create() {
       toast.error("Describe the card you want first.");
       return;
     }
-    setMsgLoading(true);
-    if (draft.medium === "art") {
-      void regenerateImage(p, draft.occasion);
-    } else {
-      void regenerateCode({ mode: "ai" });
-    }
-    try {
-      const r = await msgFn({
-        data: {
-          prompt: p,
-          occasion: draft.occasion,
-          recipientName: draft.recipientName || undefined,
-          senderName: draft.senderName || undefined,
-          model: prefsRef.current.chat,
-        },
-      });
-
-      setDraft((d) => ({ ...d, message: r.message }));
-      if (draft.medium === "code") {
-        void regenerateCode({
-          mode: draftRef.current.codeSpec ? "edit" : "ai",
-          message: r.message,
-        });
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Message generation failed");
-    } finally {
-      setMsgLoading(false);
-    }
+    await buildCard({
+      target: { ...draftRef.current, prompt: p },
+      forceMessage: true,
+      code: { mode: draftRef.current.codeSpec ? "edit" : "ai" },
+    });
   }
 
   async function rewriteMessage() {
     const p = draft.prompt.trim();
     if (!p) return;
-    setMsgLoading(true);
-    try {
-      const r = await msgFn({
-        data: {
-          prompt: p,
-          occasion: draft.occasion,
-          recipientName: draft.recipientName || undefined,
-          senderName: draft.senderName || undefined,
-          model: prefsRef.current.chat,
-        },
-      });
-
-      setDraft((d) => ({ ...d, message: r.message }));
-      if (draft.medium === "code" && draftRef.current.codeSpec) {
-        void regenerateCode({
-          mode: "edit",
-          message: r.message,
-          instruction: "Refresh with the updated message.",
-        });
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Failed");
-    } finally {
-      setMsgLoading(false);
-    }
+    await buildCard({
+      target: { ...draftRef.current, prompt: p },
+      forceMessage: true,
+      code: draftRef.current.codeSpec
+        ? { mode: "edit", instruction: "Refresh with the updated message." }
+        : undefined,
+    });
   }
 
   function setMedium(m: Medium) {
     if (draft.medium === m) return;
+    cardBuild.cancel();
     // Switching (or first pick) — clear any preview so the user rebuilds.
     setImage(null);
     setIsFinalImage(false);
@@ -510,7 +509,7 @@ function Create() {
     if (!spec) return;
     setDraft((d) => ({
       ...d,
-      codeSpec: { ...spec, template: "ai", source, seed: Math.floor(Math.random() * 1e6) },
+      codeSpec: { ...spec, template: "ai", source },
     }));
     toast.success("Running your edited code");
   }
@@ -524,7 +523,7 @@ function Create() {
     shuffled[shuffled.length - 1] = others[Math.floor(Math.random() * others.length)];
     setDraft((d) => ({
       ...d,
-      codeSpec: { ...spec, palette: shuffled, seed: Math.floor(Math.random() * 1e6) },
+      codeSpec: { ...spec, palette: shuffled },
     }));
   }
 
@@ -576,6 +575,14 @@ function Create() {
 
   const previewBusy = draft.medium === "art" ? imgLoading : codeLoading;
   const hasOutput = draft.medium === "art" ? !!image : !!draft.codeSpec;
+  const buildStatusText =
+    cardBuild.status === "writing"
+      ? "Writing your message"
+      : cardBuild.status === "designing"
+        ? "Designing your card"
+        : cardBuild.status === "rendering"
+          ? "Rendering your card"
+          : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -648,7 +655,7 @@ function Create() {
                 setMedium={setMedium}
                 onBuild={editorBuild}
                 onRewriteMessage={rewriteMessage}
-                onRegenerateCode={regenerateCode}
+                onRegenerateCode={requestCodeBuild}
                 imgLoading={imgLoading}
                 msgLoading={msgLoading}
                 codeLoading={codeLoading}
@@ -658,6 +665,11 @@ function Create() {
 
           {/* Right: Preview + Send */}
           <div className="flex min-h-[520px] min-w-0 flex-col gap-3 lg:min-h-0 lg:gap-4">
+            {buildStatusText && (
+              <div className="text-xs text-muted-foreground" aria-live="polite">
+                {buildStatusText}…
+              </div>
+            )}
             {draft.medium === "code" && draft.codeSpec && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
@@ -682,7 +694,7 @@ function Create() {
                     <Shuffle className="h-3 w-3" /> Shuffle
                   </button>
                   <button
-                    onClick={() => regenerateCode({ mode: "ai" })}
+                    onClick={() => requestCodeBuild({ mode: "ai" })}
                     disabled={codeLoading}
                     className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/60 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground disabled:opacity-40"
                   >

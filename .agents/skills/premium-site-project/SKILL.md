@@ -142,13 +142,13 @@ If the user says the motion feels too fast or jerky, slow it down (raise duratio
 
 Default pairings (ask the user if unsure):
 
-| Vibe | Heading font | Body font |
-|---|---|---|
-| Modern tech | Geist | Inter |
-| Editorial | GT Sectra / Tiempos | Söhne |
-| Vintage / heritage | GT America Extended | Söhne |
-| Minimalist Swiss | Helvetica Now | Inter |
-| Playful brand | Migra / Migra Italic | Inter |
+| Vibe               | Heading font         | Body font |
+| ------------------ | -------------------- | --------- |
+| Modern tech        | Geist                | Inter     |
+| Editorial          | GT Sectra / Tiempos  | Söhne     |
+| Vintage / heritage | GT America Extended  | Söhne     |
+| Minimalist Swiss   | Helvetica Now        | Inter     |
+| Playful brand      | Migra / Migra Italic | Inter     |
 
 Load fonts via `next/font` (Next.js) or the official font CDN. Never load 6 weights when 2 will do.
 
@@ -215,8 +215,8 @@ If they paste a screenshot or URL of a site they like:
 When the user is ready to put the site online:
 
 1. Tell them to sign up at [vercel.com](https://vercel.com) (free, no card needed)
-2. Offer to deploy for them: *"I can connect this project to Vercel and put it online. You'll just need to click 'yes' on Vercel a couple of times when it asks for permission."*
-3. After the first deploy, every change can be redeployed with a single *"redeploy"* in chat — no manual uploads.
+2. Offer to deploy for them: _"I can connect this project to Vercel and put it online. You'll just need to click 'yes' on Vercel a couple of times when it asks for permission."_
+3. After the first deploy, every change can be redeployed with a single _"redeploy"_ in chat — no manual uploads.
 
 ## Anti-patterns (don't do these)
 

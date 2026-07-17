@@ -49,14 +49,7 @@ type ParsedResponse = {
     senderName: string | null;
     medium: "art" | "code" | null;
     codeTemplate:
-      | "confetti"
-      | "fireworks"
-      | "kinetic"
-      | "hearts"
-      | "starfield"
-      | "ribbons"
-      | "ai"
-      | null;
+      "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai" | null;
     codeMotion: string | null;
     codePalette: string[] | null;
     regenerateImage: boolean;
@@ -84,7 +77,7 @@ function extractJson(raw: string): ParsedResponse {
 }
 
 export const chatCard = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => ChatInput.parse(raw))
+  .validator((raw: unknown) => ChatInput.parse(raw))
   .handler(async ({ data }) => {
     const mediumChosen = data.draft.medium === "art" || data.draft.medium === "code";
     const system = `You are Pigeon, a gentle assistant helping someone craft a personal e-card or invitation/RSVP card. You work in a draft-then-approve flow: you PROPOSE a draft of the card; the sender reviews it and clicks "Approve & build" to generate it. Nothing is generated until they approve. If they ask for changes instead, revise the draft.

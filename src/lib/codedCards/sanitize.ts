@@ -2,13 +2,13 @@
 // Used both by the in-app iframe runner (AISnippet) and the standalone HTML
 // export, so both surfaces enforce the same rules.
 
-export const FORBIDDEN_TOKENS = /\b(import|require|fetch|XMLHttpRequest|window\.parent|top\.|document\.cookie|localStorage|indexedDB|navigator\.sendBeacon|<script)\b/i;
+export const FORBIDDEN_TOKENS =
+  /\b(import|require|fetch|XMLHttpRequest|window\.parent|top\.|document\.cookie|localStorage|indexedDB|navigator\.sendBeacon)\b|<\s*script\b/i;
 
 export const MAX_SNIPPET_CHARS = 12_000;
 
 export type SanitizeResult =
-  | { ok: true; source: string }
-  | { ok: false; reason: "too_large" | "forbidden_token" };
+  { ok: true; source: string } | { ok: false; reason: "too_large" | "forbidden_token" };
 
 export function sanitizeSnippet(src: string): SanitizeResult {
   if (src.length > MAX_SNIPPET_CHARS) return { ok: false, reason: "too_large" };

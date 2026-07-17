@@ -1,7 +1,19 @@
 import { useMemo } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Confetti({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
+export function Confetti({
+  phrase,
+  message,
+  palette,
+  tempo,
+  seed,
+}: {
+  phrase: string;
+  message?: string;
+  palette: string[];
+  tempo: number;
+  seed: number;
+}) {
   const [bg, ...accents] = palette;
   const pieces = useMemo(() => {
     const r = rng(seed);
@@ -40,11 +52,31 @@ export function Confetti({ phrase, message, palette, tempo, seed }: { phrase: st
       ))}
       <div className="absolute inset-0 grid place-items-center px-6 text-center">
         <div className="flex max-w-[92%] flex-col items-center gap-4">
-          <h1 className="pgn-phrase" style={{ color: palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.05, letterSpacing: "-0.02em", textShadow: `0 2px 30px ${bg}` }}>
+          <h1
+            className="pgn-phrase"
+            style={{
+              color: palette[1] ?? "#fff",
+              fontFamily: '"Instrument Serif", serif',
+              fontSize: "clamp(2.25rem, 7vw, 4.5rem)",
+              lineHeight: 1.05,
+              letterSpacing: "-0.02em",
+              textShadow: `0 2px 30px ${bg}`,
+            }}
+          >
             {phrase}
           </h1>
           {message ? (
-            <p style={{ color: palette[2] ?? palette[1] ?? "#fff", fontFamily: '"Instrument Serif", serif', fontStyle: "italic", fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)", lineHeight: 1.35, textShadow: `0 2px 20px ${bg}`, maxWidth: "36ch" }}>
+            <p
+              style={{
+                color: palette[2] ?? palette[1] ?? "#fff",
+                fontFamily: '"Instrument Serif", serif',
+                fontStyle: "italic",
+                fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)",
+                lineHeight: 1.35,
+                textShadow: `0 2px 20px ${bg}`,
+                maxWidth: "36ch",
+              }}
+            >
               {message}
             </p>
           ) : null}

@@ -60,7 +60,10 @@ export function OpeningGate({
           Tap to open
         </div>
         {recipientName && (
-          <div className="pt-2 text-sm italic opacity-70" style={{ fontFamily: '"Instrument Serif", Georgia, serif' }}>
+          <div
+            className="pt-2 text-sm italic opacity-70"
+            style={{ fontFamily: '"Instrument Serif", Georgia, serif' }}
+          >
             for {recipientName}
           </div>
         )}
@@ -72,7 +75,13 @@ export function OpeningGate({
 // Rough luminance check so text stays readable on any palette[0].
 function isLight(hex: string): boolean {
   const m = hex.replace("#", "");
-  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m.slice(0, 6);
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m.slice(0, 6);
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);

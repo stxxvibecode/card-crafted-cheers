@@ -10,13 +10,40 @@ type Categorised = { id: string; owned_by: string; bucket: Bucket };
 // Real generative model families. We match on well-known LLM/image slugs so the
 // picker stays focused instead of showing tool-use endpoints (affinity-*, brave-*, etc.).
 const CHAT_HINTS = [
-  "gpt", "o1", "o3", "o4", "claude", "gemini", "grok", "llama", "mistral",
-  "mixtral", "qwen", "deepseek", "command", "sonar", "phi-", "yi-", "nova",
-  "cohere", "kimi", "hermes",
+  "gpt",
+  "o1",
+  "o3",
+  "o4",
+  "claude",
+  "gemini",
+  "grok",
+  "llama",
+  "mistral",
+  "mixtral",
+  "qwen",
+  "deepseek",
+  "command",
+  "sonar",
+  "phi-",
+  "yi-",
+  "nova",
+  "cohere",
+  "kimi",
+  "hermes",
 ];
 const IMAGE_HINTS = [
-  "gpt-image", "dall-e", "flux", "imagen", "stable-diffusion", "sdxl", "sd3",
-  "playground-v", "kandinsky", "recraft", "ideogram", "photon",
+  "gpt-image",
+  "dall-e",
+  "flux",
+  "imagen",
+  "stable-diffusion",
+  "sdxl",
+  "sd3",
+  "playground-v",
+  "kandinsky",
+  "recraft",
+  "ideogram",
+  "photon",
 ];
 const CHAT_EXCLUDE = ["embed", "whisper", "tts", "moderation", "rerank", "guard", "vision-encoder"];
 
@@ -27,7 +54,6 @@ function categorise(id: string): "chat" | "image" | null {
   if (CHAT_HINTS.some((h) => s.includes(h))) return "chat";
   return null;
 }
-
 
 let cache: { at: number; body: string } | null = null;
 const TTL = 5 * 60 * 1000;

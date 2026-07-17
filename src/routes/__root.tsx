@@ -92,11 +92,31 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Pigeon — hand-carried e-cards, quietly beautiful" },
-      { name: "description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
-      { property: "og:description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
-      { name: "twitter:description", content: "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f5e7f7e0-3d1a-4660-95b2-57e4464cae11" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f5e7f7e0-3d1a-4660-95b2-57e4464cae11" },
+      {
+        name: "description",
+        content:
+          "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it.",
+      },
+      {
+        property: "og:description",
+        content:
+          "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it.",
+      },
+      {
+        name: "twitter:description",
+        content:
+          "Describe the card you want. Pigeon paints a one-of-a-kind piece and writes a warm note, then carries it to whoever should have it.",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f5e7f7e0-3d1a-4660-95b2-57e4464cae11",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/f5e7f7e0-3d1a-4660-95b2-57e4464cae11",
+      },
     ],
     links: [
       { rel: "stylesheet", href: appCss },

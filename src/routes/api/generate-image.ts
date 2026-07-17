@@ -17,16 +17,16 @@ export const Route = createFileRoute("/api/generate-image")({
         }
 
         const phraseMap: Record<string, string> = {
-          "birthday": "Happy Birthday",
+          birthday: "Happy Birthday",
           "thank you": "Thank You",
           "thank-you": "Thank You",
-          "thanks": "Thank You",
-          "congrats": "Congratulations",
-          "congratulations": "Congratulations",
+          thanks: "Thank You",
+          congrats: "Congratulations",
+          congratulations: "Congratulations",
           "get well": "Get Well Soon",
-          "holiday": "Happy Holidays",
-          "anniversary": "Happy Anniversary",
-          "love": "With Love",
+          holiday: "Happy Holidays",
+          anniversary: "Happy Anniversary",
+          love: "With Love",
           "thinking of you": "Thinking of You",
         };
         const phrase = occasion ? phraseMap[occasion.trim().toLowerCase()] : undefined;
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/generate-image")({
 
         const styled = `A beautiful, warm, hand-illustrated greeting-card artwork${occasion ? ` for a ${occasion} card` : ""}. Subject: ${prompt}. Painterly, soft light, joyful, tasteful greeting-card composition with negative space for the typography.${typography}`;
 
-        const chosenModel = (model?.trim() || DEFAULT_IMAGE_MODEL);
+        const chosenModel = model?.trim() || DEFAULT_IMAGE_MODEL;
 
         // lava.so is OpenAI-compatible. gpt-image-1 supports streaming with
         // partial_images. For other providers/models the gateway falls back to

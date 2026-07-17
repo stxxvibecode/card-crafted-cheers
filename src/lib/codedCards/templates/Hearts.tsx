@@ -1,7 +1,19 @@
 import { useMemo } from "react";
 import { rng } from "@/lib/occasion";
 
-export function Hearts({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
+export function Hearts({
+  phrase,
+  message,
+  palette,
+  tempo,
+  seed,
+}: {
+  phrase: string;
+  message?: string;
+  palette: string[];
+  tempo: number;
+  seed: number;
+}) {
   const [bg, ...accents] = palette;
   const hearts = useMemo(() => {
     const r = rng(seed);
@@ -38,16 +50,37 @@ export function Hearts({ phrase, message, palette, tempo, seed }: { phrase: stri
             animation: `pgn-float ${h.duration / tempo}s ease-in ${h.delay}s infinite`,
           }}
         >
-          <path fill="currentColor" d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z" />
+          <path
+            fill="currentColor"
+            d="M12 21s-7-4.5-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 6C19 16.5 12 21 12 21z"
+          />
         </svg>
       ))}
       <div className="absolute inset-0 grid place-items-center px-6 text-center">
         <div className="flex max-w-[90%] flex-col items-center gap-4">
-          <h1 style={{ color: palette[3] ?? palette[1], fontFamily: '"Instrument Serif", serif', fontSize: "clamp(2.25rem, 7vw, 4.5rem)", lineHeight: 1.05, letterSpacing: "-0.02em", fontStyle: "italic" }}>
+          <h1
+            style={{
+              color: palette[3] ?? palette[1],
+              fontFamily: '"Instrument Serif", serif',
+              fontSize: "clamp(2.25rem, 7vw, 4.5rem)",
+              lineHeight: 1.05,
+              letterSpacing: "-0.02em",
+              fontStyle: "italic",
+            }}
+          >
             {phrase}
           </h1>
           {message ? (
-            <p style={{ color: palette[3] ?? palette[1], opacity: 0.85, fontFamily: '"Instrument Serif", serif', fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)", lineHeight: 1.4, maxWidth: "36ch" }}>
+            <p
+              style={{
+                color: palette[3] ?? palette[1],
+                opacity: 0.85,
+                fontFamily: '"Instrument Serif", serif',
+                fontSize: "clamp(0.95rem, 1.6vw, 1.25rem)",
+                lineHeight: 1.4,
+                maxWidth: "36ch",
+              }}
+            >
               {message}
             </p>
           ) : null}

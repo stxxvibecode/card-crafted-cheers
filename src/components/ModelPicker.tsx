@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronDown, Cpu, Image as ImageIcon, MessageSquare, Search, Check, Loader2 } from "lucide-react";
+import {
+  ChevronDown,
+  Cpu,
+  Image as ImageIcon,
+  MessageSquare,
+  Search,
+  Check,
+  Loader2,
+} from "lucide-react";
 import { useModelPrefs } from "@/lib/modelStore";
 
 type Model = { id: string; owned_by: string; bucket: "chat" | "image" };
@@ -11,7 +19,10 @@ function loadModels(): Promise<ApiResp> {
   if (!cache) {
     cache = fetch("/api/models")
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`Model list ${r.status}`))))
-      .catch((e) => { cache = null; throw e; });
+      .catch((e) => {
+        cache = null;
+        throw e;
+      });
   }
   return cache;
 }
@@ -26,15 +37,19 @@ export function ModelPicker() {
 
   useEffect(() => {
     if (!open || data) return;
-    loadModels().then(setData).catch((e) => setErr(e.message));
+    loadModels()
+      .then(setData)
+      .catch((e) => setErr(e.message));
   }, [open, data]);
 
-  const list = data?.[tab] ?? [];
   const filtered = useMemo(() => {
+    const list = data?.[tab] ?? [];
     const term = q.trim().toLowerCase();
     if (!term) return list;
-    return list.filter((m) => m.id.toLowerCase().includes(term) || m.owned_by.toLowerCase().includes(term));
-  }, [list, q]);
+    return list.filter(
+      (m) => m.id.toLowerCase().includes(term) || m.owned_by.toLowerCase().includes(term),
+    );
+  }, [data, tab, q]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, Model[]>();
@@ -48,7 +63,8 @@ export function ModelPicker() {
 
   const selected = tab === "chat" ? prefs.chat : prefs.image;
   const pick = (id: string) => {
-    if (tab === "chat") setChat(id); else setImage(id);
+    if (tab === "chat") setChat(id);
+    else setImage(id);
   };
 
   return (
@@ -109,7 +125,10 @@ export function ModelPicker() {
                   return (
                     <button
                       key={m.id}
-                      onClick={() => { pick(m.id); setOpen(false); }}
+                      onClick={() => {
+                        pick(m.id);
+                        setOpen(false);
+                      }}
                       className={`flex w-full items-center justify-between gap-2 px-3 py-1.5 text-left transition hover:bg-muted ${active ? "bg-muted" : ""}`}
                     >
                       <span className="truncate font-mono text-[11px] text-foreground">{m.id}</span>

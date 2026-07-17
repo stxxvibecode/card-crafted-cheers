@@ -26,6 +26,7 @@ const Input = z.object({
   paletteHint: z.array(z.string()).max(5).optional(),
   instruction: z.string().max(500).optional(),
   prior: PriorSchema.optional(),
+  seed: z.number().int().min(0).max(999_999).optional(),
   model: z.string().max(120).optional(),
 });
 
@@ -639,19 +640,22 @@ async function generateWithSelfCheck(
 
   const second = stripFences(await callChat(model, system, retryPrompt));
   const check2 = selfCheck(second, occasion, retryProfile);
+  if (!check2.ok) {
+    throw new Error(`Generated card did not pass validation: ${check2.issues.join("; ")}`);
+  }
   recordDesign(occasion, check2.move ?? check.move, check2.signature);
   return second;
 }
 
 export const generateCodedCard = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => Input.parse(raw))
+  .validator((raw: unknown) => Input.parse(raw))
   .handler(async ({ data }): Promise<CodeSpec> => {
     const model = data.model;
 
     const finalPhrase = data.phrase?.trim() || phraseFor(data.occasion) || "With Love";
 
     const finalMessage = data.message?.trim() ?? "";
-    const seed = Math.floor(Math.random() * 1_000_000);
+    const seed = data.seed ?? Math.floor(Math.random() * 1_000_000);
 
     // ------------------------------------------------------------------
     // EDIT MODE — iterate on an existing card spec

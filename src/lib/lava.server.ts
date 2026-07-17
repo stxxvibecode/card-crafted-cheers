@@ -18,7 +18,6 @@ type ChatOpts = {
   maxTokens?: number;
 };
 
-
 export async function lavaChat(
   model: string | undefined,
   messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
@@ -31,10 +30,7 @@ export async function lavaChat(
   // Trim trailing assistant messages so the last turn is always user.
   // System messages at the head are fine and are preserved.
   const safeMessages = [...messages];
-  while (
-    safeMessages.length &&
-    safeMessages[safeMessages.length - 1].role === "assistant"
-  ) {
+  while (safeMessages.length && safeMessages[safeMessages.length - 1].role === "assistant") {
     safeMessages.pop();
   }
   if (!safeMessages.some((m) => m.role === "user")) {
@@ -71,9 +67,18 @@ export async function lavaChat(
     if (res.status === 429) throw new Error(`Lava: rate limited — try again in a moment.`);
     if (res.status === 402) throw new Error(`Lava: wallet out of credits. Top up at lava.so.`);
     if (res.status === 401) throw new Error(`Lava: invalid LAVA_SECRET_KEY.`);
-    if (res.status === 404) throw new Error(`Lava: model "${body.model}" not available. Pick another in the model picker.`);
-    if (res.status === 413) throw new Error(`Lava: "${resolvedModel}" is too small for this prompt (token/minute limit exceeded). Pick a larger-context model like gemini-2.5-flash or gemini-2.5-pro in the model picker.`);
-    if (res.status >= 500) throw new Error(`Lava ${res.status}: upstream provider for "${resolvedModel}" hiccupped (${text.includes("Failed to parse") ? "parse error" : "server error"}). Try again, or switch model.`);
+    if (res.status === 404)
+      throw new Error(
+        `Lava: model "${body.model}" not available. Pick another in the model picker.`,
+      );
+    if (res.status === 413)
+      throw new Error(
+        `Lava: "${resolvedModel}" is too small for this prompt (token/minute limit exceeded). Pick a larger-context model like gemini-2.5-flash or gemini-2.5-pro in the model picker.`,
+      );
+    if (res.status >= 500)
+      throw new Error(
+        `Lava ${res.status}: upstream provider for "${resolvedModel}" hiccupped (${text.includes("Failed to parse") ? "parse error" : "server error"}). Try again, or switch model.`,
+      );
     throw new Error(`Lava ${res.status}: ${text.slice(0, 300) || res.statusText}`);
   }
   const json = (await res.json()) as {
@@ -84,13 +89,18 @@ export async function lavaChat(
   if (!content) {
     const reason = choice?.finish_reason;
     if (reason === "length" || reason === "max_tokens") {
-      throw new Error(`Lava: "${resolvedModel}" hit its output cap before writing anything. Try a different model in the picker.`);
+      throw new Error(
+        `Lava: "${resolvedModel}" hit its output cap before writing anything. Try a different model in the picker.`,
+      );
     }
     if (reason === "content_filter" || reason === "safety") {
-      throw new Error(`Lava: "${resolvedModel}" refused this prompt (safety filter). Try rephrasing or switch model.`);
+      throw new Error(
+        `Lava: "${resolvedModel}" refused this prompt (safety filter). Try rephrasing or switch model.`,
+      );
     }
-    throw new Error(`Lava: "${resolvedModel}" returned an empty response${reason ? ` (finish_reason: ${reason})` : ""}. Try another model.`);
+    throw new Error(
+      `Lava: "${resolvedModel}" returned an empty response${reason ? ` (finish_reason: ${reason})` : ""}. Try another model.`,
+    );
   }
   return content;
 }
-

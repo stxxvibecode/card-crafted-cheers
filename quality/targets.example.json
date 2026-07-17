@@ -1,0 +1,10 @@
+{
+  "birthday-dawn-fishing": {
+    "creatorUrl": "http://localhost:3000/create?prompt=...",
+    "recipientUrl": "http://localhost:3000/card/<published-card-id>"
+  },
+  "invitation-dinner": {
+    "creatorUrl": "http://localhost:3000/create?prompt=...",
+    "recipientUrl": "http://localhost:3000/card/<published-card-id>"
+  }
+}

@@ -113,7 +113,11 @@ export function buildStandaloneHtml(spec: CodeSpec, meta: ExportMeta = {}): stri
 }
 
 /** Triggers a client-side download of the standalone card HTML. */
-export function downloadStandaloneHtml(spec: CodeSpec, meta: ExportMeta = {}, filename?: string): boolean {
+export function downloadStandaloneHtml(
+  spec: CodeSpec,
+  meta: ExportMeta = {},
+  filename?: string,
+): boolean {
   if (typeof window === "undefined") return false;
   const html = buildStandaloneHtml(spec, meta);
   if (!html) return false;
@@ -131,7 +135,13 @@ export function downloadStandaloneHtml(spec: CodeSpec, meta: ExportMeta = {}, fi
 
 function isLight(hex: string): boolean {
   const m = hex.replace("#", "");
-  const full = m.length === 3 ? m.split("").map((c) => c + c).join("") : m.slice(0, 6);
+  const full =
+    m.length === 3
+      ? m
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : m.slice(0, 6);
   const r = parseInt(full.slice(0, 2), 16);
   const g = parseInt(full.slice(2, 4), 16);
   const b = parseInt(full.slice(4, 6), 16);

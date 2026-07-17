@@ -5,15 +5,45 @@ import { getTemplateSource } from "./registry";
 
 // Very small syntax highlighter — no external deps. Just enough for read-only display.
 function highlight(src: string): string {
-  const escape = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const escape = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   // Split tokens with a single pass over strings, comments, keywords, numbers.
   const parts: Array<{ kind: string; text: string }> = [];
   let i = 0;
   const keywords = new Set([
-    "const", "let", "var", "function", "return", "if", "else", "for", "while",
-    "new", "class", "extends", "of", "in", "typeof", "instanceof",
-    "true", "false", "null", "undefined", "this", "try", "catch", "finally",
-    "throw", "async", "await", "import", "export", "from", "default", "break", "continue",
+    "const",
+    "let",
+    "var",
+    "function",
+    "return",
+    "if",
+    "else",
+    "for",
+    "while",
+    "new",
+    "class",
+    "extends",
+    "of",
+    "in",
+    "typeof",
+    "instanceof",
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "this",
+    "try",
+    "catch",
+    "finally",
+    "throw",
+    "async",
+    "await",
+    "import",
+    "export",
+    "from",
+    "default",
+    "break",
+    "continue",
   ]);
   while (i < src.length) {
     const c = src[i];
@@ -37,8 +67,14 @@ function highlight(src: string): string {
       const quote = c;
       let j = i + 1;
       while (j < src.length) {
-        if (src[j] === "\\") { j += 2; continue; }
-        if (src[j] === quote) { j++; break; }
+        if (src[j] === "\\") {
+          j += 2;
+          continue;
+        }
+        if (src[j] === quote) {
+          j++;
+          break;
+        }
         j++;
       }
       parts.push({ kind: "st", text: src.slice(i, j) });
@@ -66,14 +102,18 @@ function highlight(src: string): string {
     parts.push({ kind: "pn", text: c });
     i++;
   }
-  return parts.map((p) => {
-    const t = escape(p.text);
-    if (p.kind === "cm") return `<span class="text-muted-foreground/70 italic">${t}</span>`;
-    if (p.kind === "st") return `<span class="text-emerald-700 dark:text-emerald-400">${t}</span>`;
-    if (p.kind === "nu") return `<span class="text-amber-700 dark:text-amber-400">${t}</span>`;
-    if (p.kind === "kw") return `<span class="text-fuchsia-700 dark:text-fuchsia-400 font-medium">${t}</span>`;
-    return t;
-  }).join("");
+  return parts
+    .map((p) => {
+      const t = escape(p.text);
+      if (p.kind === "cm") return `<span class="text-muted-foreground/70 italic">${t}</span>`;
+      if (p.kind === "st")
+        return `<span class="text-emerald-700 dark:text-emerald-400">${t}</span>`;
+      if (p.kind === "nu") return `<span class="text-amber-700 dark:text-amber-400">${t}</span>`;
+      if (p.kind === "kw")
+        return `<span class="text-fuchsia-700 dark:text-fuchsia-400 font-medium">${t}</span>`;
+      return t;
+    })
+    .join("");
 }
 
 export function CodeViewer({
@@ -92,7 +132,9 @@ export function CodeViewer({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(source);
 
-  useEffect(() => { setDraft(source); }, [source]);
+  useEffect(() => {
+    setDraft(source);
+  }, [source]);
 
   const isAi = spec.template === "ai";
   const html = useMemo(() => highlight(source), [source]);
@@ -103,7 +145,9 @@ export function CodeViewer({
       await navigator.clipboard.writeText(source);
       setCopied(true);
       setTimeout(() => setCopied(false), 1200);
-    } catch { /* clipboard blocked */ }
+    } catch {
+      /* clipboard blocked */
+    }
   }
 
   return (
@@ -135,13 +179,19 @@ export function CodeViewer({
           {editing && (
             <>
               <button
-                onClick={() => { setDraft(source); setEditing(false); }}
+                onClick={() => {
+                  setDraft(source);
+                  setEditing(false);
+                }}
                 className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <X className="h-3 w-3" /> Cancel
               </button>
               <button
-                onClick={() => { onEdit?.(draft); setEditing(false); }}
+                onClick={() => {
+                  onEdit?.(draft);
+                  setEditing(false);
+                }}
                 className="inline-flex items-center gap-1 rounded-md bg-foreground px-2 py-1 text-background hover:opacity-90"
               >
                 <Play className="h-3 w-3" /> Run

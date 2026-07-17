@@ -1,5 +1,16 @@
-
-export function KineticSerif({ phrase, message, palette, tempo, seed }: { phrase: string; message?: string; palette: string[]; tempo: number; seed: number }) {
+export function KineticSerif({
+  phrase,
+  message,
+  palette,
+  tempo,
+  seed,
+}: {
+  phrase: string;
+  message?: string;
+  palette: string[];
+  tempo: number;
+  seed: number;
+}) {
   const [bg, ink, a1, a2] = palette;
   const words = phrase.split(" ");
   const dur = 0.9 / tempo;
@@ -7,16 +18,31 @@ export function KineticSerif({ phrase, message, palette, tempo, seed }: { phrase
   const split = variant === 1 || variant === 2;
   const textAlign = variant === 2 ? "right" : "left";
   const justify = variant === 3 ? "flex-end" : variant === 2 ? "flex-end" : "flex-start";
-  const align = variant === 0 ? "center" : variant === 1 ? "flex-start" : variant === 2 ? "flex-end" : "flex-start";
+  const align =
+    variant === 0
+      ? "center"
+      : variant === 1
+        ? "flex-start"
+        : variant === 2
+          ? "flex-end"
+          : "flex-start";
   const textWidth = split ? "48%" : "min(38rem, 88%)";
-  const textPad = variant === 0 ? "10%" : variant === 1 ? "10% 8% 10% 10%" : variant === 2 ? "10% 10% 10% 8%" : "12% 8% 14% 8%";
-  const accentStyle = variant === 1
-    ? { right: "6%", top: "50%", transform: "translateY(-50%)" }
-    : variant === 2
-      ? { left: "6%", top: "50%", transform: "translateY(-50%)" }
-      : variant === 3
-        ? { left: "50%", bottom: "10%", transform: "translateX(-50%)" }
-        : { right: "12%", top: "14%" };
+  const textPad =
+    variant === 0
+      ? "10%"
+      : variant === 1
+        ? "10% 8% 10% 10%"
+        : variant === 2
+          ? "10% 10% 10% 8%"
+          : "12% 8% 14% 8%";
+  const accentStyle =
+    variant === 1
+      ? { right: "6%", top: "50%", transform: "translateY(-50%)" }
+      : variant === 2
+        ? { left: "6%", top: "50%", transform: "translateY(-50%)" }
+        : variant === 3
+          ? { left: "50%", bottom: "10%", transform: "translateX(-50%)" }
+          : { right: "12%", top: "14%" };
 
   return (
     <div className="relative h-full w-full overflow-hidden" style={{ backgroundColor: bg }}>
@@ -64,7 +90,7 @@ export function KineticSerif({ phrase, message, palette, tempo, seed }: { phrase
         >
           <div
             style={{
-              fontFamily: 'ui-monospace,Menlo,monospace',
+              fontFamily: "ui-monospace,Menlo,monospace",
               fontSize: "11px",
               letterSpacing: "0.22em",
               textTransform: "uppercase",
