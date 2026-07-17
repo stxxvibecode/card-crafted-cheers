@@ -11,6 +11,11 @@ import {
 import { phraseFor } from "./occasion";
 import { lavaChat } from "./lava.server";
 import { evaluateCardSpec, repairCardSpec } from "./codedCards/quality";
+import {
+  applyCardSpecPatches,
+  EDITABLE_SPEC_PATHS,
+  type CardSpecPatch,
+} from "./codedCards/spec-patch";
 
 const PriorSchema = z.object({
   template: z
@@ -19,6 +24,20 @@ const PriorSchema = z.object({
   palette: z.array(z.string()).max(5).optional(),
   tempo: z.number().optional(),
   source: z.string().max(20_000).optional(),
+  spec: CardSpecV2Schema.optional(),
+});
+
+const V2_PATCH_OUTPUT = z.object({
+  summary: z.string().min(1).max(120),
+  patches: z
+    .array(
+      z.object({
+        path: z.enum(EDITABLE_SPEC_PATHS),
+        value: z.unknown(),
+      }),
+    )
+    .min(1)
+    .max(8),
 });
 
 const Input = z.object({
@@ -355,6 +374,74 @@ function fallbackV2Design(
     entrance: "rise",
     idle: quiet ? "drift" : "pulse",
   });
+}
+
+async function editCardSpecV2(args: {
+  prior: CardSpecV2;
+  instruction?: string;
+  phrase: string;
+  message: string;
+  paletteHint?: string[];
+  model?: string;
+}): Promise<CardSpecV2> {
+  const patches: CardSpecPatch[] = [];
+  if (args.phrase !== args.prior.content.headline)
+    patches.push({ path: "content.headline", value: args.phrase });
+  if (args.message !== args.prior.content.message)
+    patches.push({ path: "content.message", value: args.message });
+  const paletteHint = args.paletteHint;
+  if (paletteHint && paletteHint.length >= 3) {
+    patches.push(
+      { path: "theme.background", value: paletteHint[0] },
+      { path: "theme.ink", value: paletteHint[1] },
+      { path: "theme.accent", value: paletteHint[2] },
+    );
+  }
+
+  const instruction = args.instruction?.trim();
+  if (instruction) {
+    const system = `You edit a structured e-card by returning the smallest possible JSON patch list.
+Only change properties explicitly requested. Preserve every unrelated property.
+Allowed paths: ${EDITABLE_SPEC_PATHS.join(", ")}.
+Return JSON with a short summary and patches. Never return a full card spec.`;
+    const user = [
+      `Current spec: ${JSON.stringify(args.prior)}`,
+      `Sender request: ${instruction}`,
+      "Translate the request into the fewest allowed patches. For calmer, lower motif.intensity and use drift or none. For editorial, use split, left alignment, quiet density, and editorial font. For another layout, change only composition.layout. For spacing, change density only.",
+    ].join("\n");
+    try {
+      const result = V2_PATCH_OUTPUT.parse(
+        JSON.parse(await callChat(args.model, system, user, { json: true, maxTokens: 450 })),
+      );
+      patches.push(...(result.patches as CardSpecPatch[]));
+    } catch {
+      const lower = instruction.toLowerCase();
+      if (lower.includes("calmer")) {
+        patches.push(
+          { path: "motif.intensity", value: 0.25 },
+          { path: "motion.idle", value: "drift" },
+        );
+      } else if (lower.includes("editorial")) {
+        patches.push(
+          { path: "composition.layout", value: "split" },
+          { path: "composition.alignment", value: "left" },
+          { path: "composition.density", value: "quiet" },
+          { path: "theme.fontPair", value: "editorial" },
+        );
+      } else if (lower.includes("spacing")) {
+        patches.push({ path: "composition.density", value: "quiet" });
+      } else if (lower.includes("layout")) {
+        const layouts = ["poster", "split", "ticket"] as const;
+        const current = layouts.indexOf(args.prior.composition.layout);
+        patches.push({
+          path: "composition.layout",
+          value: layouts[(current + 1) % layouts.length],
+        });
+      }
+    }
+  }
+
+  return patches.length ? applyCardSpecPatches(args.prior, patches) : args.prior;
 }
 
 async function generateCardSpecV2(args: {
@@ -794,6 +881,17 @@ export const generateCodedCard = createServerFn({ method: "POST" })
 
     const finalMessage = data.message?.trim() ?? "";
     const seed = data.seed ?? Math.floor(Math.random() * 1_000_000);
+
+    if (data.mode === "edit" && data.prior?.spec) {
+      return editCardSpecV2({
+        prior: data.prior.spec,
+        instruction: data.instruction,
+        phrase: finalPhrase,
+        message: finalMessage,
+        paletteHint: data.paletteHint,
+        model,
+      });
+    }
 
     // CardSpec v2 is the default runtime. Source cards are legacy-only so
     // existing shared links can still be edited without a destructive migration.

@@ -8,8 +8,18 @@ import { generateMessage, saveCard } from "@/lib/cards.functions";
 import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
+import type { CardPart } from "@/lib/codedCards/CardRenderer";
 import { PreviewCanvas } from "@/components/PreviewCanvas";
+import { VibeControls } from "@/components/VibeControls";
 import { isCardSpecV2, TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
+import { applyCardSpecPatches, type CardSpecPatch } from "@/lib/codedCards/spec-patch";
+import {
+  commitVersion,
+  createVersionHistory,
+  moveVersion,
+  selectVersion,
+  type VersionHistory,
+} from "@/lib/codedCards/version-history";
 import { phraseFor } from "@/lib/occasion";
 import { ModelPicker } from "@/components/ModelPicker";
 import { useModelPrefs } from "@/lib/modelStore";
@@ -197,6 +207,9 @@ function Create() {
   ]);
   const [chatBusy, setChatBusy] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<PlanUpdates | null>(null);
+  const [versionHistory, setVersionHistory] = useState<VersionHistory | null>(null);
+  const [compareVersionId, setCompareVersionId] = useState<string | null>(null);
+  const [selectedCardPart, setSelectedCardPart] = useState<CardPart | null>(null);
   const cardBuild = useCardBuild();
 
   const msgFn = useServerFn(generateMessage);
@@ -252,13 +265,15 @@ function Create() {
             paletteHint: opts.paletteHint,
             instruction: opts.instruction,
             prior:
-              opts.mode === "edit" && d.codeSpec && !isCardSpecV2(d.codeSpec)
-                ? {
-                    template: d.codeSpec.template,
-                    palette: d.codeSpec.palette,
-                    tempo: d.codeSpec.tempo,
-                    source: d.codeSpec.source,
-                  }
+              opts.mode === "edit" && d.codeSpec
+                ? isCardSpecV2(d.codeSpec)
+                  ? { spec: d.codeSpec }
+                  : {
+                      template: d.codeSpec.template,
+                      palette: d.codeSpec.palette,
+                      tempo: d.codeSpec.tempo,
+                      source: d.codeSpec.source,
+                    }
                 : undefined,
             seed,
             model: prefsRef.current.chat,
@@ -266,6 +281,14 @@ function Create() {
         });
         if (cardBuild.isCurrent(lease)) {
           setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+          if (isCardSpecV2(spec)) {
+            const checkpointName =
+              opts.instruction?.trim().slice(0, 42) ||
+              (opts.mode === "ai" ? "New design" : "Design update");
+            setVersionHistory((history) =>
+              history ? commitVersion(history, spec, checkpointName) : createVersionHistory(spec),
+            );
+          }
           if (isCardSpecV2(spec) && spec.quality?.repaired) {
             toast.message("Polished spacing and contrast");
           }
@@ -504,7 +527,50 @@ function Create() {
     setImgLoading(false);
     setCodeLoading(false);
     setPreviewTab("preview");
+    setVersionHistory(null);
+    setCompareVersionId(null);
     setDraft((d) => ({ ...d, medium: m, codeSpec: undefined }));
+  }
+
+  function applyV2Patches(patches: CardSpecPatch[], name: string) {
+    const spec = draftRef.current.codeSpec;
+    if (!spec || !isCardSpecV2(spec)) return;
+    try {
+      const next = applyCardSpecPatches(spec, patches);
+      setDraft((current) => ({ ...current, message: next.content.message, codeSpec: next }));
+      setVersionHistory((history) =>
+        history ? commitVersion(history, next, name) : createVersionHistory(next, name),
+      );
+      setCompareVersionId(null);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "That edit could not be applied.");
+    }
+  }
+
+  function navigateVersion(direction: -1 | 1) {
+    if (!versionHistory) return;
+    const next = moveVersion(versionHistory, direction);
+    const version = next.versions[next.index];
+    setVersionHistory(next);
+    setDraft((current) => ({
+      ...current,
+      message: version.spec.content.message,
+      codeSpec: version.spec,
+    }));
+    setCompareVersionId(null);
+  }
+
+  function chooseVersion(id: string) {
+    if (!versionHistory) return;
+    const next = selectVersion(versionHistory, id);
+    const version = next.versions[next.index];
+    setVersionHistory(next);
+    setDraft((current) => ({
+      ...current,
+      message: version.spec.content.message,
+      codeSpec: version.spec,
+    }));
+    setCompareVersionId(null);
   }
 
   function applyHandEditedSource(source: string) {
@@ -523,14 +589,7 @@ function Create() {
     const others = TEMPLATES.flatMap((t) => t.palette);
     if (isCardSpecV2(spec)) {
       const accent = others[Math.floor(Math.random() * others.length)];
-      setDraft((d) =>
-        d.codeSpec && isCardSpecV2(d.codeSpec)
-          ? {
-              ...d,
-              codeSpec: { ...d.codeSpec, theme: { ...d.codeSpec.theme, accent } },
-            }
-          : d,
-      );
+      applyV2Patches([{ path: "theme.accent", value: accent }], "Accent shuffle");
       return;
     }
     const shuffled = [...spec.palette].sort(() => Math.random() - 0.5);
@@ -598,6 +657,9 @@ function Create() {
         : cardBuild.status === "rendering"
           ? "Rendering your card"
           : null;
+  const compareVersion = compareVersionId
+    ? versionHistory?.versions.find((version) => version.id === compareVersionId)
+    : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -685,6 +747,33 @@ function Create() {
                 {buildStatusText}…
               </div>
             )}
+            {cardBuild.activity.length > 0 && (
+              <ol
+                className="flex flex-wrap items-center gap-1.5 text-[10px] text-muted-foreground"
+                aria-label="Build activity"
+              >
+                {cardBuild.activity.map((step, index) => (
+                  <li
+                    key={`${step}-${index}`}
+                    className={`rounded-full border px-2 py-1 ${index === cardBuild.activity.length - 1 ? "border-primary/40 bg-primary/10 text-foreground" : "border-border"}`}
+                  >
+                    {step === "planning"
+                      ? "Plan"
+                      : step === "writing"
+                        ? "Copy"
+                        : step === "designing"
+                          ? "Design + check"
+                          : step === "rendering"
+                            ? "Render"
+                            : step === "ready"
+                              ? "Ready"
+                              : step === "failed"
+                                ? "Needs attention"
+                                : step}
+                  </li>
+                ))}
+              </ol>
+            )}
             {draft.medium === "code" && draft.codeSpec && (
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="inline-flex rounded-full border border-border bg-card/60 p-0.5 text-xs">
@@ -739,6 +828,20 @@ function Create() {
             )}
 
             <div className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)] sm:rounded-3xl">
+              {draft.codeSpec && isCardSpecV2(draft.codeSpec) && versionHistory && (
+                <VibeControls
+                  spec={draft.codeSpec}
+                  history={versionHistory}
+                  busy={codeLoading}
+                  compareVersionId={compareVersionId}
+                  onCompare={setCompareVersionId}
+                  onMove={navigateVersion}
+                  onSelectVersion={chooseVersion}
+                  onPatch={applyV2Patches}
+                  onCommand={(instruction) => requestCodeBuild({ mode: "edit", instruction })}
+                  selectedPart={selectedCardPart}
+                />
+              )}
               {draft.medium === "code" &&
               draft.codeSpec &&
               !isCardSpecV2(draft.codeSpec) &&
@@ -805,7 +908,24 @@ function Create() {
                       </div>
                     )
                   ) : draft.codeSpec ? (
-                    <CodedCard spec={draft.codeSpec} />
+                    compareVersion && isCardSpecV2(draft.codeSpec) ? (
+                      <div className="grid h-full grid-cols-2 gap-px bg-border">
+                        <div className="relative min-w-0 bg-background">
+                          <span className="absolute left-2 top-2 z-20 rounded bg-background/80 px-2 py-1 text-[9px] uppercase text-muted-foreground">
+                            Before
+                          </span>
+                          <CodedCard spec={compareVersion.spec} />
+                        </div>
+                        <div className="relative min-w-0 bg-background">
+                          <span className="absolute left-2 top-2 z-20 rounded bg-background/80 px-2 py-1 text-[9px] uppercase text-muted-foreground">
+                            Current
+                          </span>
+                          <CodedCard spec={draft.codeSpec} />
+                        </div>
+                      </div>
+                    ) : (
+                      <CodedCard spec={draft.codeSpec} onSelect={setSelectedCardPart} />
+                    )
                   ) : (
                     <div className="grid h-full place-items-center text-sm text-muted-foreground">
                       {codeLoading ? (

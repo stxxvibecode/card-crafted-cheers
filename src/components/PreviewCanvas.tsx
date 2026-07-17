@@ -14,9 +14,9 @@ const DEVICE_WIDTHS: Record<DeviceMode, number> = {
 const SAFE_PADDING = 16;
 
 const DEVICE_OPTIONS: { mode: DeviceMode; label: string; Icon: typeof Smartphone }[] = [
-  { mode: "mobile", label: "Mobile", Icon: Smartphone },
-  { mode: "tablet", label: "Tablet", Icon: Tablet },
-  { mode: "web", label: "Web", Icon: Monitor },
+  { mode: "mobile", label: "Phone", Icon: Smartphone },
+  { mode: "tablet", label: "Share", Icon: Tablet },
+  { mode: "web", label: "Desktop", Icon: Monitor },
 ];
 
 /**

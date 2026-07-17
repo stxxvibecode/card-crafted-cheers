@@ -1,7 +1,8 @@
 import type { CSSProperties } from "react";
 import type { CardSpecV2 } from "./registry";
 
-type Props = { spec: CardSpecV2; staticFrame?: boolean };
+export type CardPart = "background" | "headline" | "message" | "event" | "action";
+type Props = { spec: CardSpecV2; staticFrame?: boolean; onSelect?: (part: CardPart) => void };
 
 function seeded(seed: number, index: number) {
   const value = Math.sin(seed * 12.9898 + index * 78.233) * 43758.5453;
@@ -76,7 +77,15 @@ function MotifLayer({ spec, staticFrame }: Props) {
   );
 }
 
-function Copy({ spec, className = "" }: { spec: CardSpecV2; className?: string }) {
+function Copy({
+  spec,
+  className = "",
+  onSelect,
+}: {
+  spec: CardSpecV2;
+  className?: string;
+  onSelect?: (part: CardPart) => void;
+}) {
   const { content, theme } = spec;
   return (
     <div className={`relative z-10 flex min-w-0 flex-col ${className}`}>
@@ -86,6 +95,11 @@ function Copy({ spec, className = "" }: { spec: CardSpecV2; className?: string }
         </p>
       )}
       <h2
+        data-card-part="headline"
+        onClick={(event) => {
+          event.stopPropagation();
+          onSelect?.("headline");
+        }}
         className="mt-3 text-balance text-[clamp(2.15rem,7.5vw,5.8rem)] leading-[0.94]"
         style={{
           fontFamily:
@@ -98,7 +112,14 @@ function Copy({ spec, className = "" }: { spec: CardSpecV2; className?: string }
         {content.headline}
       </h2>
       {content.message && (
-        <p className="mt-5 max-w-[37ch] whitespace-pre-wrap text-[clamp(0.92rem,2vw,1.16rem)] leading-relaxed opacity-85">
+        <p
+          data-card-part="message"
+          onClick={(event) => {
+            event.stopPropagation();
+            onSelect?.("message");
+          }}
+          className="mt-5 max-w-[37ch] whitespace-pre-wrap text-[clamp(0.92rem,2vw,1.16rem)] leading-relaxed opacity-85"
+        >
           {content.message}
         </p>
       )}
@@ -109,11 +130,24 @@ function Copy({ spec, className = "" }: { spec: CardSpecV2; className?: string }
   );
 }
 
-function EventDetails({ spec }: { spec: CardSpecV2 }) {
+function EventDetails({
+  spec,
+  onSelect,
+}: {
+  spec: CardSpecV2;
+  onSelect?: (part: CardPart) => void;
+}) {
   const event = spec.content.event;
   if (!event || !Object.values(event).some(Boolean)) return null;
   return (
-    <dl className="relative z-10 mt-7 grid gap-2 border-t border-current/20 pt-4 text-xs uppercase tracking-[0.14em] opacity-80 sm:grid-cols-3">
+    <dl
+      data-card-part="event"
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect?.("event");
+      }}
+      className="relative z-10 mt-7 grid gap-2 border-t border-current/20 pt-4 text-xs uppercase tracking-[0.14em] opacity-80 sm:grid-cols-3"
+    >
       {event.date && (
         <div>
           <dt className="opacity-60">Date</dt>
@@ -136,10 +170,17 @@ function EventDetails({ spec }: { spec: CardSpecV2 }) {
   );
 }
 
-function CardAction({ spec }: { spec: CardSpecV2 }) {
+function CardAction({ spec, onSelect }: { spec: CardSpecV2; onSelect?: (part: CardPart) => void }) {
   if (!spec.interaction?.labels?.length) return null;
   return (
-    <div className="relative z-10 mt-6 flex flex-wrap gap-2">
+    <div
+      data-card-part="action"
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect?.("action");
+      }}
+      className="relative z-10 mt-6 flex flex-wrap gap-2"
+    >
       {spec.interaction.labels.map((label) => (
         <span key={label} className="rounded-full border border-current/30 px-3 py-1.5 text-xs">
           {label}
@@ -149,7 +190,7 @@ function CardAction({ spec }: { spec: CardSpecV2 }) {
   );
 }
 
-export function CardRenderer({ spec, staticFrame = false }: Props) {
+export function CardRenderer({ spec, staticFrame = false, onSelect }: Props) {
   const base = {
     background: spec.theme.background,
     color: spec.theme.ink,
@@ -165,20 +206,21 @@ export function CardRenderer({ spec, staticFrame = false }: Props) {
   const shared = (
     <>
       <MotifLayer spec={spec} staticFrame={staticFrame} />
-      <Copy spec={spec} />
-      <EventDetails spec={spec} />
-      <CardAction spec={spec} />
+      <Copy spec={spec} onSelect={onSelect} />
+      <EventDetails spec={spec} onSelect={onSelect} />
+      <CardAction spec={spec} onSelect={onSelect} />
     </>
   );
   if (spec.composition.layout === "split")
     return (
       <section
         data-card-spec="v2"
+        onClick={() => onSelect?.("background")}
         className={`relative grid h-full min-h-0 w-full overflow-hidden sm:grid-cols-[1.1fr_.9fr] ${entrance}`}
         style={base}
       >
         <div className="relative flex min-h-0 flex-col justify-end p-[9%]">
-          <Copy spec={spec} />
+          <Copy spec={spec} onSelect={onSelect} />
         </div>
         <div className="relative min-h-[34%] overflow-hidden border-t border-current/15 sm:border-l sm:border-t-0">
           <MotifLayer spec={spec} staticFrame={staticFrame} />
@@ -188,8 +230,8 @@ export function CardRenderer({ spec, staticFrame = false }: Props) {
           />
         </div>
         <div className="absolute bottom-[9%] left-[9%] right-[9%]">
-          <EventDetails spec={spec} />
-          <CardAction spec={spec} />
+          <EventDetails spec={spec} onSelect={onSelect} />
+          <CardAction spec={spec} onSelect={onSelect} />
         </div>
       </section>
     );
@@ -197,21 +239,23 @@ export function CardRenderer({ spec, staticFrame = false }: Props) {
     return (
       <section
         data-card-spec="v2"
+        onClick={() => onSelect?.("background")}
         className={`relative grid h-full min-h-0 w-full place-items-center overflow-hidden p-[6%] ${entrance}`}
         style={base}
       >
         <MotifLayer spec={spec} staticFrame={staticFrame} />
         <div className="relative w-full max-w-2xl border border-current/35 p-[8%] shadow-2xl">
           <div className="absolute left-0 right-0 top-[58%] border-t border-dashed border-current/40" />
-          <Copy spec={spec} />
-          <EventDetails spec={spec} />
-          <CardAction spec={spec} />
+          <Copy spec={spec} onSelect={onSelect} />
+          <EventDetails spec={spec} onSelect={onSelect} />
+          <CardAction spec={spec} onSelect={onSelect} />
         </div>
       </section>
     );
   return (
     <section
       data-card-spec="v2"
+      onClick={() => onSelect?.("background")}
       className={`relative flex h-full min-h-0 w-full flex-col justify-between overflow-hidden p-[9%] ${entrance}`}
       style={base}
     >

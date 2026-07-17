@@ -8,17 +8,19 @@ import { Ribbons } from "./templates/Ribbons";
 import { AISnippet } from "./AISnippet";
 import { OpeningGate } from "./OpeningGate";
 import { isCardSpecV2, type CodeSpec } from "./registry";
-import { CardRenderer } from "./CardRenderer";
+import { CardRenderer, type CardPart } from "./CardRenderer";
 
 export function CodedCard({
   spec,
   awaitTap = false,
   recipientName,
+  onSelect,
 }: {
   spec: CodeSpec;
   /** When true, show the tap-to-open gate before playing the animation. */
   awaitTap?: boolean;
   recipientName?: string | null;
+  onSelect?: (part: CardPart) => void;
 }) {
   const [opened, setOpened] = useState(!awaitTap);
 
@@ -42,7 +44,7 @@ export function CodedCard({
     );
   }
 
-  if (isCardSpecV2(spec)) return <CardRenderer spec={spec} />;
+  if (isCardSpecV2(spec)) return <CardRenderer spec={spec} onSelect={onSelect} />;
 
   const props = {
     phrase: spec.phrase,
