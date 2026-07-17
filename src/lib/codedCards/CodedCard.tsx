@@ -7,7 +7,8 @@ import { Starfield } from "./templates/Starfield";
 import { Ribbons } from "./templates/Ribbons";
 import { AISnippet } from "./AISnippet";
 import { OpeningGate } from "./OpeningGate";
-import type { CodeSpec } from "./registry";
+import { isCardSpecV2, type CodeSpec } from "./registry";
+import { CardRenderer } from "./CardRenderer";
 
 export function CodedCard({
   spec,
@@ -30,12 +31,18 @@ export function CodedCard({
   if (awaitTap && !opened) {
     return (
       <OpeningGate
-        palette={spec.palette}
+        palette={
+          isCardSpecV2(spec)
+            ? [spec.theme.background, spec.theme.ink, spec.theme.accent]
+            : spec.palette
+        }
         recipientName={recipientName}
         onOpen={() => setOpened(true)}
       />
     );
   }
+
+  if (isCardSpecV2(spec)) return <CardRenderer spec={spec} />;
 
   const props = {
     phrase: spec.phrase,

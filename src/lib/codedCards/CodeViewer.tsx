@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Copy, Check, Play, Pencil, X } from "lucide-react";
-import type { CodeSpec } from "./registry";
+import { isCardSpecV2, type CodeSpec } from "./registry";
 import { getTemplateSource } from "./registry";
 
 // Very small syntax highlighter — no external deps. Just enough for read-only display.
@@ -124,9 +124,10 @@ export function CodeViewer({
   onEdit?: (source: string) => void;
 }) {
   const source = useMemo(() => {
+    if (isCardSpecV2(spec)) return "// CardSpec v2 cards are rendered by Pigeon's shared runtime.";
     if (spec.template === "ai") return spec.source ?? "// no source";
     return getTemplateSource(spec.template) ?? "// template source unavailable";
-  }, [spec.template, spec.source]);
+  }, [spec]);
 
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);

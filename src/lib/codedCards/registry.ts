@@ -1,8 +1,12 @@
-export type TemplateId =
+import { z } from "zod";
+
+export type LegacyTemplateId =
   "confetti" | "fireworks" | "kinetic" | "hearts" | "starfield" | "ribbons" | "ai";
 
-export type CodeSpec = {
-  template: TemplateId;
+export type TemplateId = LegacyTemplateId | "v2";
+
+export type LegacyCodeSpec = {
+  template: LegacyTemplateId;
   palette: string[]; // 3-5 hex colors, first is background
   phrase: string; // short headline (e.g. "Happy Birthday")
   message?: string; // full personal note, rendered as secondary text
@@ -11,8 +15,69 @@ export type CodeSpec = {
   source?: string; // only when template === 'ai' — sandboxed JS body
 };
 
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Use a six-digit hex color");
+
+export const CardSpecV2Schema = z
+  .object({
+    version: z.literal(2),
+    template: z.literal("v2"),
+    id: z.string().min(1).max(120),
+    seed: z.number().int().min(0).max(999_999),
+    format: z.enum(["portrait", "square", "story"]),
+    occasion: z.string().min(1).max(64),
+    theme: z.object({
+      background: hexColor,
+      ink: hexColor,
+      accent: hexColor,
+      fontPair: z.enum(["editorial", "modern", "playful", "mono"]),
+    }),
+    content: z.object({
+      eyebrow: z.string().max(72).optional(),
+      headline: z.string().min(1).max(80),
+      message: z.string().max(600),
+      recipient: z.string().max(80).optional(),
+      sender: z.string().max(80).optional(),
+      event: z
+        .object({
+          date: z.string().max(80).optional(),
+          time: z.string().max(80).optional(),
+          location: z.string().max(120).optional(),
+        })
+        .optional(),
+    }),
+    composition: z.object({
+      layout: z.enum(["poster", "split", "ticket"]),
+      alignment: z.enum(["left", "center", "right", "off-axis"]),
+      density: z.enum(["quiet", "balanced", "expressive"]),
+    }),
+    motif: z.object({
+      kind: z.enum(["ribbon", "bloom", "spark", "orbit", "light", "confetti", "none"]),
+      intensity: z.number().min(0).max(1),
+    }),
+    motion: z.object({
+      entrance: z.enum(["rise", "fade", "scale", "none"]),
+      idle: z.enum(["float", "drift", "pulse", "none"]),
+      durationMs: z.number().int().min(0).max(6000),
+      reducedMotion: z.boolean(),
+    }),
+    interaction: z
+      .object({
+        kind: z.enum(["reveal", "reaction", "rsvp", "keepsake"]),
+        labels: z.array(z.string().min(1).max(24)).max(3).optional(),
+      })
+      .optional(),
+  })
+  .strict();
+
+export type CardSpecV2 = z.infer<typeof CardSpecV2Schema>;
+export type CodeSpec = LegacyCodeSpec | CardSpecV2;
+
+export function isCardSpecV2(spec: CodeSpec | null | undefined): spec is CardSpecV2 {
+  return !!spec && spec.template === "v2" && spec.version === 2;
+}
+
 export const TEMPLATES: {
-  id: Exclude<TemplateId, "ai">;
+  id: Exclude<LegacyTemplateId, "ai">;
   name: string;
   bestFor: string[];
   palette: string[];
@@ -55,7 +120,7 @@ export const TEMPLATES: {
   },
 ];
 
-export function suggestTemplate(occasion?: string): Exclude<TemplateId, "ai"> {
+export function suggestTemplate(occasion?: string): Exclude<LegacyTemplateId, "ai"> {
   const o = occasion?.toLowerCase();
   if (!o) return "kinetic";
   const hit = TEMPLATES.find((t) => t.bestFor.includes(o));
@@ -71,7 +136,7 @@ import heartsSrc from "./templates/Hearts.tsx?raw";
 import starfieldSrc from "./templates/Starfield.tsx?raw";
 import ribbonsSrc from "./templates/Ribbons.tsx?raw";
 
-const TEMPLATE_SOURCES: Record<Exclude<TemplateId, "ai">, string> = {
+const TEMPLATE_SOURCES: Record<Exclude<LegacyTemplateId, "ai">, string> = {
   confetti: confettiSrc,
   fireworks: fireworksSrc,
   kinetic: kineticSrc,
@@ -81,6 +146,6 @@ const TEMPLATE_SOURCES: Record<Exclude<TemplateId, "ai">, string> = {
 };
 
 export function getTemplateSource(id: TemplateId): string | null {
-  if (id === "ai") return null;
+  if (id === "ai" || id === "v2") return null;
   return TEMPLATE_SOURCES[id] ?? null;
 }

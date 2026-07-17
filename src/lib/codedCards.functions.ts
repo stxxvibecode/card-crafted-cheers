@@ -1,6 +1,13 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { TEMPLATES, suggestTemplate, type CodeSpec, type TemplateId } from "./codedCards/registry";
+import {
+  CardSpecV2Schema,
+  TEMPLATES,
+  suggestTemplate,
+  type CardSpecV2,
+  type CodeSpec,
+  type LegacyTemplateId,
+} from "./codedCards/registry";
 import { phraseFor } from "./occasion";
 import { lavaChat } from "./lava.server";
 
@@ -30,7 +37,7 @@ const Input = z.object({
   model: z.string().max(120).optional(),
 });
 
-const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<TemplateId, "ai">[];
+const TEMPLATE_IDS = TEMPLATES.map((t) => t.id) as Exclude<LegacyTemplateId, "ai">[];
 
 const CODE_SYSTEM = `PIGEON CARD BUILDER — PRODUCT SPEC
 You are the Design Engineer inside Pigeon, an AI-powered e-card platform. You combine product design taste, front-end engineering rigor, motion direction, accessibility, and copy judgment. Your output is production UI code, not a sketch. Treat every card as if it will be opened by one real recipient on a phone and screenshot by the sender.
@@ -297,6 +304,122 @@ function stripFences(s: string): string {
 function cleanPalette(input: string[] | undefined, fallback: string[]): string[] {
   const cleaned = (input ?? []).filter((c) => /^#[0-9a-fA-F]{3,8}$/.test(c));
   return cleaned.length >= 3 ? cleaned.slice(0, 5) : fallback;
+}
+
+const V2_DESIGN_SYSTEM = `You are Pigeon's design director. Return only JSON for a structured e-card design. You choose from three tested layouts: poster, split, ticket. The renderer owns DOM, CSS, responsive behavior, and accessibility.
+
+Choose one clear emotional direction. Avoid generic centered greeting-card output. Match invitations, RSVP, weddings, dinners, parties, launches, showers, and save-the-dates to the ticket layout. Use split for editorial, thoughtful notes and poster for celebratory or bold messages. Keep all colors as six-digit hex values. Copy must remain exactly as supplied.`;
+
+const V2_DESIGN_OUTPUT = z.object({
+  layout: z.enum(["poster", "split", "ticket"]),
+  alignment: z.enum(["left", "center", "right", "off-axis"]),
+  density: z.enum(["quiet", "balanced", "expressive"]),
+  background: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  ink: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  accent: z.string().regex(/^#[0-9a-fA-F]{6}$/),
+  fontPair: z.enum(["editorial", "modern", "playful", "mono"]),
+  motif: z.enum(["ribbon", "bloom", "spark", "orbit", "light", "confetti", "none"]),
+  intensity: z.number().min(0).max(1),
+  entrance: z.enum(["rise", "fade", "scale", "none"]),
+  idle: z.enum(["float", "drift", "pulse", "none"]),
+});
+
+function fallbackV2Design(
+  occasion: string | undefined,
+  paletteHint: string[] | undefined,
+): z.infer<typeof V2_DESIGN_OUTPUT> {
+  const event =
+    /rsvp|invitation|invite|wedding|shower|graduation|save.?the.?date|event|party|dinner|launch/i.test(
+      occasion ?? "",
+    );
+  const quiet = /thank|well|thinking|sympathy|condolence/i.test(occasion ?? "");
+  const palette = cleanPalette(
+    paletteHint,
+    quiet
+      ? ["#1c2830", "#e8efe8", "#aac7ad"]
+      : event
+        ? ["#f3eadb", "#1f1b18", "#b05139"]
+        : ["#201e36", "#fbf7ed", "#ff9f68"],
+  );
+  return V2_DESIGN_OUTPUT.parse({
+    layout: event ? "ticket" : quiet ? "split" : "poster",
+    alignment: quiet ? "left" : "off-axis",
+    density: quiet ? "quiet" : "balanced",
+    background: palette[0],
+    ink: palette[1],
+    accent: palette[2],
+    fontPair: quiet ? "editorial" : "modern",
+    motif: quiet ? "light" : event ? "ribbon" : "spark",
+    intensity: quiet ? 0.35 : 0.65,
+    entrance: "rise",
+    idle: quiet ? "drift" : "pulse",
+  });
+}
+
+async function generateCardSpecV2(args: {
+  prompt?: string;
+  occasion?: string;
+  phrase: string;
+  message: string;
+  seed: number;
+  paletteHint?: string[];
+  instruction?: string;
+  model?: string;
+}): Promise<CardSpecV2> {
+  const fallback = fallbackV2Design(args.occasion, args.paletteHint);
+  const user = [
+    `Occasion: ${args.occasion ?? "Just because"}`,
+    `Brief: ${args.prompt ?? "A personal card"}`,
+    `Headline: ${args.phrase}`,
+    `Message: ${args.message || "(no message)"}`,
+    args.instruction ? `Requested refinement: ${args.instruction}` : null,
+    args.paletteHint?.length ? `Palette preference: ${args.paletteHint.join(", ")}` : null,
+    `Seed: ${args.seed}; vary the design deterministically through the selected layout and motif.`,
+    "Return layout, alignment, density, background, ink, accent, fontPair, motif, intensity, entrance, idle.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+  let design = fallback;
+  try {
+    design = V2_DESIGN_OUTPUT.parse(
+      JSON.parse(
+        await callChat(args.model, V2_DESIGN_SYSTEM, user, { json: true, maxTokens: 600 }),
+      ),
+    );
+  } catch {
+    // The proven fallback keeps a request usable when a model response is malformed.
+  }
+  return CardSpecV2Schema.parse({
+    version: 2,
+    template: "v2",
+    id: `card-${args.seed.toString(36)}`,
+    seed: args.seed,
+    format: "square",
+    occasion: args.occasion?.trim() || "Just because",
+    theme: {
+      background: design.background,
+      ink: design.ink,
+      accent: design.accent,
+      fontPair: design.fontPair,
+    },
+    content: {
+      headline: args.phrase,
+      message: args.message,
+      eyebrow: args.occasion?.trim() || undefined,
+    },
+    composition: { layout: design.layout, alignment: design.alignment, density: design.density },
+    motif: { kind: design.motif, intensity: design.intensity },
+    motion: {
+      entrance: design.entrance,
+      idle: design.idle,
+      durationMs: 3200,
+      reducedMotion: false,
+    },
+    interaction:
+      design.layout === "ticket"
+        ? { kind: "rsvp", labels: ["Yes", "Maybe", "Can't make it"] }
+        : { kind: "keepsake", labels: ["Keep this close"] },
+  });
 }
 
 // ---------------- Self-check: detect repeats & anti-patterns ----------------
@@ -657,6 +780,21 @@ export const generateCodedCard = createServerFn({ method: "POST" })
     const finalMessage = data.message?.trim() ?? "";
     const seed = data.seed ?? Math.floor(Math.random() * 1_000_000);
 
+    // CardSpec v2 is the default runtime. Source cards are legacy-only so
+    // existing shared links can still be edited without a destructive migration.
+    if (!data.prior?.source) {
+      return generateCardSpecV2({
+        prompt: data.prompt,
+        occasion: data.occasion,
+        phrase: finalPhrase,
+        message: finalMessage,
+        seed,
+        paletteHint: data.paletteHint,
+        instruction: data.instruction,
+        model,
+      });
+    }
+
     // ------------------------------------------------------------------
     // EDIT MODE — iterate on an existing card spec
     // ------------------------------------------------------------------
@@ -704,7 +842,7 @@ export const generateCodedCard = createServerFn({ method: "POST" })
       // Prior is a named template. Decide: palette/tempo tweak vs upgrade to AI source.
       const currentTemplate = (
         prior?.template && prior.template !== "ai" ? prior.template : suggestTemplate(data.occasion)
-      ) as Exclude<TemplateId, "ai">;
+      ) as Exclude<LegacyTemplateId, "ai">;
       const templateBase = TEMPLATES.find((t) => t.id === currentTemplate)!;
 
       const DECISION_SCHEMA = {
@@ -752,8 +890,9 @@ palette[0] is background; ensure the phrase stays legible on it.`;
 
       if (parsed?.action === "tweak" || !parsed) {
         const nextTemplate =
-          parsed?.template && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">)
-            ? (parsed.template as Exclude<TemplateId, "ai">)
+          parsed?.template &&
+          TEMPLATE_IDS.includes(parsed.template as Exclude<LegacyTemplateId, "ai">)
+            ? (parsed.template as Exclude<LegacyTemplateId, "ai">)
             : currentTemplate;
         return {
           template: nextTemplate,
@@ -848,8 +987,8 @@ Tempo: 0.5 (slow) to 2 (fast). Default 1.`;
       }
       const template = data.templateHint
         ? data.templateHint
-        : parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<TemplateId, "ai">)
-          ? (parsed.template as Exclude<TemplateId, "ai">)
+        : parsed && TEMPLATE_IDS.includes(parsed.template as Exclude<LegacyTemplateId, "ai">)
+          ? (parsed.template as Exclude<LegacyTemplateId, "ai">)
           : fallbackId;
       const palette = cleanPalette(parsed?.palette ?? data.paletteHint, suggested.palette);
       const tempo = Math.max(0.4, Math.min(2, parsed?.tempo ?? 1));

@@ -9,7 +9,7 @@ import { chatCard } from "@/lib/chatCard.functions";
 import { generateCodedCard } from "@/lib/codedCards.functions";
 import { CodedCard } from "@/lib/codedCards/CodedCard";
 import { PreviewCanvas } from "@/components/PreviewCanvas";
-import { TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
+import { isCardSpecV2, TEMPLATES, type CodeSpec, type TemplateId } from "@/lib/codedCards/registry";
 import { phraseFor } from "@/lib/occasion";
 import { ModelPicker } from "@/components/ModelPicker";
 import { useModelPrefs } from "@/lib/modelStore";
@@ -252,7 +252,7 @@ function Create() {
             paletteHint: opts.paletteHint,
             instruction: opts.instruction,
             prior:
-              opts.mode === "edit" && d.codeSpec
+              opts.mode === "edit" && d.codeSpec && !isCardSpecV2(d.codeSpec)
                 ? {
                     template: d.codeSpec.template,
                     palette: d.codeSpec.palette,
@@ -506,7 +506,7 @@ function Create() {
 
   function applyHandEditedSource(source: string) {
     const spec = draft.codeSpec;
-    if (!spec) return;
+    if (!spec || isCardSpecV2(spec)) return;
     setDraft((d) => ({
       ...d,
       codeSpec: { ...spec, template: "ai", source },
@@ -518,6 +518,18 @@ function Create() {
     const spec = draft.codeSpec;
     if (!spec) return;
     const others = TEMPLATES.flatMap((t) => t.palette);
+    if (isCardSpecV2(spec)) {
+      const accent = others[Math.floor(Math.random() * others.length)];
+      setDraft((d) =>
+        d.codeSpec && isCardSpecV2(d.codeSpec)
+          ? {
+              ...d,
+              codeSpec: { ...d.codeSpec, theme: { ...d.codeSpec.theme, accent } },
+            }
+          : d,
+      );
+      return;
+    }
     const shuffled = [...spec.palette].sort(() => Math.random() - 0.5);
     shuffled[1] = others[Math.floor(Math.random() * others.length)];
     shuffled[shuffled.length - 1] = others[Math.floor(Math.random() * others.length)];
@@ -724,7 +736,10 @@ function Create() {
             )}
 
             <div className="flex min-h-[460px] flex-1 flex-col overflow-hidden rounded-2xl border border-border bg-card/60 shadow-[0_30px_80px_-30px_rgba(0,0,0,0.15)] sm:rounded-3xl">
-              {draft.medium === "code" && draft.codeSpec && previewTab === "code" ? (
+              {draft.medium === "code" &&
+              draft.codeSpec &&
+              !isCardSpecV2(draft.codeSpec) &&
+              previewTab === "code" ? (
                 <div className="aspect-square w-full">
                   <Suspense
                     fallback={
@@ -1354,7 +1369,7 @@ function EditorPanel({
               <Sparkles className="h-3 w-3" /> Surprise me
             </button>
           </div>
-          {draft.codeSpec && (
+          {draft.codeSpec && !isCardSpecV2(draft.codeSpec) && (
             <div className="mt-3">
               <label className="text-xs uppercase tracking-wide text-muted-foreground">Tempo</label>
               <input

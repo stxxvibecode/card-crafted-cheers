@@ -14,7 +14,7 @@ import {
   Feather,
   X,
 } from "lucide-react";
-import type { CodeSpec } from "@/lib/codedCards/registry";
+import { isCardSpecV2, type CodeSpec } from "@/lib/codedCards/registry";
 
 const CodedCard = lazy(() =>
   import("@/lib/codedCards/CodedCard").then((mod) => ({ default: mod.CodedCard })),
@@ -137,7 +137,11 @@ function CardPage() {
   const reducedMotion = usePrefersReducedMotion();
   const messageRef = useRef<HTMLDivElement | null>(null);
 
-  const palette = card.code_spec?.palette ?? [];
+  const palette = card.code_spec
+    ? isCardSpecV2(card.code_spec)
+      ? [card.code_spec.theme.background, card.code_spec.theme.ink, card.code_spec.theme.accent]
+      : card.code_spec.palette
+    : [];
   const bg = palette[0] ?? (tone === "gentle" ? "#14141a" : "#101014");
   const light = isLight(bg);
   const ink = light ? "#1c1a17" : "#f7f4ee";
@@ -213,8 +217,13 @@ function IntroGate({
     btnRef.current?.focus();
   }, []);
 
-  const accent =
-    card.code_spec?.palette?.[2] ?? card.code_spec?.palette?.[1] ?? (light ? "#8a5a2b" : "#d8a657");
+  const accent = card.code_spec
+    ? isCardSpecV2(card.code_spec)
+      ? card.code_spec.theme.accent
+      : (card.code_spec.palette[2] ?? card.code_spec.palette[1] ?? (light ? "#8a5a2b" : "#d8a657"))
+    : light
+      ? "#8a5a2b"
+      : "#d8a657";
   const sender = card.sender_name?.trim();
   const rsvp = isRsvpCard(card);
 

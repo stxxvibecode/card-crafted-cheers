@@ -63,6 +63,7 @@ export type Database = {
           recipient_email: string;
           recipient_name: string;
           sender_name: string | null;
+          spec_version: number;
           sent_at: string | null;
           user_id: string | null;
         };
@@ -78,6 +79,7 @@ export type Database = {
           recipient_email: string;
           recipient_name: string;
           sender_name?: string | null;
+          spec_version?: number;
           sent_at?: string | null;
           user_id?: string | null;
         };
@@ -93,6 +95,7 @@ export type Database = {
           recipient_email?: string;
           recipient_name?: string;
           sender_name?: string | null;
+          spec_version?: number;
           sent_at?: string | null;
           user_id?: string | null;
         };

@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import type { Database } from "@/integrations/supabase/types";
+import { CardSpecV2Schema } from "./codedCards/registry";
+import { isCardSpecV2 } from "./codedCards/registry";
 
 function serverClient(bearer?: string) {
   const url = process.env.SUPABASE_URL!;
@@ -55,22 +57,25 @@ const SaveInput = z
     medium: z.enum(["art", "code"]).default("art"),
     imageDataUrl: z.string().min(20).max(8_000_000).optional(),
     codeSpec: z
-      .object({
-        template: z.enum([
-          "confetti",
-          "fireworks",
-          "kinetic",
-          "hearts",
-          "starfield",
-          "ribbons",
-          "ai",
-        ]),
-        palette: z.array(z.string()).min(3).max(5),
-        phrase: z.string().min(1).max(80),
-        tempo: z.number().min(0.4).max(2),
-        seed: z.number(),
-        source: z.string().max(12000).optional(),
-      })
+      .union([
+        z.object({
+          template: z.enum([
+            "confetti",
+            "fireworks",
+            "kinetic",
+            "hearts",
+            "starfield",
+            "ribbons",
+            "ai",
+          ]),
+          palette: z.array(z.string()).min(3).max(5),
+          phrase: z.string().min(1).max(80),
+          tempo: z.number().min(0.4).max(2),
+          seed: z.number(),
+          source: z.string().max(12000).optional(),
+        }),
+        CardSpecV2Schema,
+      ])
       .optional(),
     senderName: z.string().max(80).optional(),
     recipientName: z.string().min(1).max(80),
@@ -104,6 +109,7 @@ export const saveCard = createServerFn({ method: "POST" })
       medium: data.medium,
       image_url: data.imageDataUrl ?? null,
       code_spec: data.codeSpec ?? null,
+      spec_version: data.codeSpec && isCardSpecV2(data.codeSpec) ? 2 : 1,
       sender_name: data.senderName ?? null,
       recipient_name: data.recipientName,
       recipient_email: data.recipientEmail ?? "",
