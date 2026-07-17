@@ -10,6 +10,7 @@ import {
 } from "./codedCards/registry";
 import { phraseFor } from "./occasion";
 import { lavaChat } from "./lava.server";
+import { evaluateCardSpec, repairCardSpec } from "./codedCards/quality";
 
 const PriorSchema = z.object({
   template: z
@@ -389,7 +390,7 @@ async function generateCardSpecV2(args: {
   } catch {
     // The proven fallback keeps a request usable when a model response is malformed.
   }
-  return CardSpecV2Schema.parse({
+  const initialSpec = CardSpecV2Schema.parse({
     version: 2,
     template: "v2",
     id: `card-${args.seed.toString(36)}`,
@@ -419,6 +420,20 @@ async function generateCardSpecV2(args: {
       design.layout === "ticket"
         ? { kind: "rsvp", labels: ["Yes", "Maybe", "Can't make it"] }
         : { kind: "keepsake", labels: ["Keep this close"] },
+  });
+  const initialQuality = evaluateCardSpec(initialSpec);
+  const repairedSpec = initialQuality.passed
+    ? initialSpec
+    : repairCardSpec(initialSpec, initialQuality);
+  const finalQuality = evaluateCardSpec(repairedSpec);
+  if (!finalQuality.passed) {
+    throw new Error(
+      "This card needs a shorter headline or a clearer event layout before it can be published.",
+    );
+  }
+  return CardSpecV2Schema.parse({
+    ...repairedSpec,
+    quality: { ...finalQuality, repaired: !initialQuality.passed },
   });
 }
 

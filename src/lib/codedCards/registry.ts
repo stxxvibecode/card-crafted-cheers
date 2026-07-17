@@ -66,6 +66,21 @@ export const CardSpecV2Schema = z
         labels: z.array(z.string().min(1).max(24)).max(3).optional(),
       })
       .optional(),
+    quality: z
+      .object({
+        passed: z.boolean(),
+        score: z.number().min(0).max(100),
+        repaired: z.boolean(),
+        issues: z.array(
+          z.object({
+            code: z.string().min(1).max(64),
+            severity: z.enum(["blocker", "warning"]),
+            path: z.string().max(120).optional(),
+            repairHint: z.string().min(1).max(240),
+          }),
+        ),
+      })
+      .optional(),
   })
   .strict();
 

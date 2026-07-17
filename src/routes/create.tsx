@@ -266,6 +266,9 @@ function Create() {
         });
         if (cardBuild.isCurrent(lease)) {
           setDraft((cur) => ({ ...cur, medium: "code", codeSpec: spec }));
+          if (isCardSpecV2(spec) && spec.quality?.repaired) {
+            toast.message("Polished spacing and contrast");
+          }
         }
         return true;
       } catch (e) {
@@ -591,7 +594,7 @@ function Create() {
     cardBuild.status === "writing"
       ? "Writing your message"
       : cardBuild.status === "designing"
-        ? "Designing your card"
+        ? "Designing and checking your card"
         : cardBuild.status === "rendering"
           ? "Rendering your card"
           : null;
